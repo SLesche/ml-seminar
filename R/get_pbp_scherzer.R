@@ -46,5 +46,24 @@ for (i in seq_along(scherzer_game_ids)){
   scherzer_pbp[[i]] = try(mlb_pbp(scherzer_game_ids[i]))
 }
 
+scherzer_errors <- numeric()
+for (i in seq_along(scherzer_pbp)){
+  if (all(is.na(scherzer_pbp[[i]][2]))){
+    scherzer_errors = c(scherzer_errors, i)
+  }
+}
+
+scherzer_clean_pbp <- scherzer_pbp[- scherzer_errors]
+
+scherzer_pbp_data <- data.table::rbindlist(scherzer_clean_pbp, fill = TRUE) 
+
+scherzer_only_data <- scherzer_pbp_data %>% 
+  filter(matchup.pitcher.id == as.character(scherzer_mlb_id)) %>% 
+  janitor::remove_empty() %>% 
+  janitor::clean_names()
+
+data.table::fwrite(scherzer_only_data, "baseball/scherzer_data.csv")
+
 # Need to get the ballpark factors
+
 
