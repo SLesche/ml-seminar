@@ -153,7 +153,7 @@ filter_uncommon_levels <- function(variable){
 data_multinom <- scherzer_clean %>% 
   filter(pitch_type %in% c("CH", "CU", "FC", "FF", "SL"), previous_pitch_type %in% c("CH", "CU", "FC", "FF", "SL"))
 
-multinom <- nnet::multinom(pitch_type ~ pitch_count_total + batter_handedness, data = data_multinom)
+multinom <- nnet::multinom(pitch_type ~ pitch_count_total + previous_pitch_type + count + batter_handedness, data = data_multinom)
 
 
 predict <- table(data_multinom$pitch_type, predict(multinom))
