@@ -1,0 +1,285 @@
+---
+title: "2. Sitzung: Modelle"
+output: html_notebook
+---
+
+```{r}
+# Load packages
+packs = c('tidyverse', 'skimr', 'caTools', 'mltools', 'psych', 'glmnet', 'caret')
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(packs, update=F, character.only = T)
+```
+
+```{r}
+# Load data
+df = data.table::fread("../data/grade_preproc.csv") %>% 
+  mutate_at(vars(-c(age, absences, G1, G2, G3)), list(as.factor)) %>% 
+  mutate_if(is.factor, addNA)
+split_data <- rsample::initial_validation_split(
+  df,
+  prop = c(0.8, 0.1)
+)
+
+training_data <- rsample::training(split_data)
+test_data <- rsample::testing(split_data)
+validation_data <- rsample::validation(split_data)
+
+# prepare data: encode factors, separate predictors (matrix format) and outcome (vector)
+train_ohe = one_hot(data.table::as.data.table(training_data))
+test_ohe = one_hot(data.table::as.data.table(test_data))
+x_train = model.matrix(G3~., train_ohe)[,-1]
+x_test = model.matrix(G3~., test_ohe)[,-1]
+y_train = train_ohe %>%
+  select(G3) %>%
+  unlist() %>%
+  as.numeric()
+
+```
+
+
+```{r}
+# Custom evaluation metric, you can just run this and use later
+eval_metrics = function(pred, true){
+  SSE = sum((pred - true)^2)
+  SST = sum((true - mean(true))^2)
+  R_square = 1 - SSE / SST
+  RMSE = sqrt(SSE/length(true))
+  data.frame(
+  RMSE = RMSE,
+  Rsquare = R_square)
+}
+
+run_matrix_ols <- function(data, ncol){
+  X = one_hot(data.table::as.data.table(data)) %>% 
+    janitor::remove_empty() %>%
+    janitor::remove_constant() %>% 
+    mutate(one_vec = 1) %>%
+    select(-G3, -sex_M, - school_GP, -address_R, -famsize_LE3, -Pstatus_A, -schoolsup_no, -famsup_no, -paid_no, -higher_no, -nursery_no, -internet_no, -romantic_no, -activities_no, -Medu_4, -Fedu_4, -Mjob_teacher, -Fjob_teacher, -reason_reputation, -guardian_other, -traveltime_4, -studytime_4, -failures_3, -famrel_5, -freetime_5, -goout_5, -Dalc_5, -Walc_5, -health_5 ) %>%
+    select(one_vec, everything()) %>% 
+    as.matrix()
+  
+  Y = data %>% select(G3) %>% as.matrix()
+  
+  # add a vector with only 1s to the beginning of the matrix X to get a 3 by n (sample size) matrix
+  # calc tanspose of X (X')
+  Xt = t(X)
+  
+  # multiply X with transpose of X (X'X)
+  XtX = Xt %*% X
+  
+  # calc inverse of X′X, hint: use "solve", get dimensions
+  XtXinv = solve(XtX)
+  
+  # calc coefficients 'b': inv(X′X) X′Y
+  
+  b =  XtXinv %*% Xt %*% Y
+  
+  sol = list()
+  sol$params = b
+  sol$names = colnames(X)
+  sol$predictions = 
+  return(b)
+}
+```
+
+1. TASK: OLS REGRESSION
+```{r}
+### Run a linear regression lm() using all predictors in the "grade" dataset to predict final grade (G3), get RMSE and R^2 values of both train and test set 
+
+# 1. Step: Split train and test set into X_train, y_train; X_test, y_test
+##add code here###
+
+# 2. Step: Fit lm on train data, get predictions for the train set: y^train
+lm_training <- lm(G3 ~ ., data = training_data)
+
+### 2. Step: Evaluate on test set "test", check for amount of overfitting using RMSE and explained variance r2 as metrics ##
+
+# 2.1 predict raw values (outcome) for the train set and test set // Hint: use the "predict" function
+## Add code here ##
+predicted_charges_train <- predict(lm_training, training_data)
+predicted_charges_test <- predict(lm_training, test_data)
+
+# 2.2. calculate and print r2 and rmse scores for train and test set // Hint: use the custom function from the beginning
+## Add code here ##
+eval_lm_test <- eval_metrics(predicted_charges_test, test_data$G3)
+eval_lm_train <- eval_metrics(predicted_charges_train, training_data$G3)
+
+# 3. Step: Use X_test and trained model to predict test set values: y^test
+##add code here###
+
+
+
+# 4. Step: Evaluate performance (RMSE, R^2) on train and test set 
+##add code here###
+
+##############################################################################
+
+### Brave (voluntary) bonus challenge: Do the train set prediction y^train using the linear regression formula and matrix multiplication from last session, compare results with lm() function
+
+# Hint: Scale variables first (only numeric variables!) and make X and y a vecotr/matrix. Get the predicted y^ values with the calculated weights 'b' using matrix vector multiplication. To make it easier, do the calculation like this: 
+#y^ =  X[,-first column]b[-intercept,] + intercept 
+
+##add code here###
+
+# Compare predicted values y^train from your manual matrix mult. with built-in lm() function. To get predictions from lm() you can use the predict function and compare values with: all.equal(y^MatrixMult, y^lm)
+
+##add code here###
+
+```
+
+
+2. TASK: LASSO REGRESSION
+```{r}
+# 1. Step: Make xtrain, xtest, ytrain, ytest matrices/vectors (data.matrix)
+
+#Hints: 
+# 1. Use glmnet to do the lasso and cv.glmnet to find the best hyperparameter lambda
+# 2. Lasso only works with data matrix format. Look into documentation to chose the right alpha for lasso.
+
+# Do cv (k=10) for lambda (regularization hyperparameter) on train set, get best lambda.
+set.seed(0)
+#find optimal lambda value that minimizes MSE on train set
+nFolds = 10
+foldid = sample(rep(seq(nFolds), length.out = nrow(training_data)))
+cv_model = cv.glmnet(x = as.matrix(x = x_train), 
+                   y = y_train, alpha = 1, 
+                   nfolds = nFolds,
+                   foldid = foldid)
+best_lambda = cv_model$lambda.min
+
+# fit best model
+best_model = glmnet(x_train, y_train, alpha = 1, lambda = best_lambda)
+
+### Evaluate model 2 ##
+# predict raw values for the train set and test set
+predictions2 = predict(best_model, s=best_lambda, newx=x_train)
+predictions_test2 = predict(best_model, s = best_lambda, newx = x_test)
+
+# # calculate and print r2 and rmse scores for train and test set
+score_train1 = eval_metrics(predictions2, train_ohe$G3)
+print(c("Score Train Model 2: LASSO Regression", score_train1))
+
+score_test1 = eval_metrics(predictions_test2, test_ohe$G3)
+print(c("Score Test Model 2: LASSO Regression", score_test1))
+
+```
+
+### What do you observe? Which model (OLS, Lasso) would you prefer and why? ### 
+# Space for thoughts #
+
+BONUS TASK: RIDGE REGRESSION
+```{r}
+# Do the same calculations as just done for Lasso but now do a Ridge Regression. How do the predictions change? Which model would you prefer now? Hint: change the "alpha" parameter in glmnet to run ridge instead of lasso.
+set.seed(0)
+#find optimal lambda value that minimizes MSE on train set
+nFolds = 10
+foldid = sample(rep(seq(nFolds), length.out = nrow(training_data)))
+cv_model = cv.glmnet(x = as.matrix(x = x_train), 
+                   y = y_train, alpha = 0, 
+                   nfolds = nFolds,
+                   foldid = foldid)
+best_lambda = cv_model$lambda.min
+
+# fit best model
+best_model = glmnet(x_train, y_train, alpha = 0, lambda = best_lambda)
+
+### Evaluate model 2 ##
+# predict raw values for the train set and test set
+predictions2 = predict(best_model, s=best_lambda, newx=x_train)
+predictions_test2 = predict(best_model, s = best_lambda, newx = x_test)
+
+# # calculate and print r2 and rmse scores for train and test set
+score_train1 = eval_metrics(predictions2, train_ohe$G3)
+print(c("Score Train Model 2: RIDGE Regression", score_train1))
+
+score_test1 = eval_metrics(predictions_test2, test_ohe$G3)
+print(c("Score Test Model 2: RIDGE Regression", score_test1))
+
+```
+
+3. TASK: OLS GRADIENT DESCEND
+```{r}
+# Generate sample data
+set.seed(0)
+x = 1:100
+y = 3*x + rnorm(100, mean = 0, sd = 20)
+
+# Set initial weight/bias
+w = 0 # weights (coefficients)
+b0 = 0 # bias (intercept)
+
+# Set hyperparameters
+epochs = 200000# num of iterations
+l = 0.0001 # learning rate
+
+get_log_mse <- function(x, y, w, b0){
+  ypred = x*w + b0
+  MSE = mean(sum((ypred - y)^2))
+  return(log(MSE))
+}
+
+get_mse <- function(x, y, w, b0){
+  ypred = x*w + b0
+  MSE = mean(sum((ypred - y)^2))
+  return(MSE)
+}
+
+
+possible_weights = seq(0, 10, 0.2)
+possible_intercepts = seq(-5, 5, 0.2)
+
+data <- expand.grid(possible_intercepts, possible_weights)
+colnames(data) = c("b", "w")
+data$logmse = NULL
+data$mse = NULL
+
+for (i in 1:nrow(data)){
+  data$logmse[i] = get_log_mse(x, y, data$w[i], data$b[i])
+  data$mse[i] = get_mse(x, y, data$w[i], data$b[i])
+}
+
+lattice::wireframe(mse ~ b + w, data = data)
+
+rgl::persp3d(data$b, data$w, data$mse)
+
+# Function to perform OLS regression using gradient descent
+ols_gradient_descent = function(x, y, l, epochs) {
+  
+  # Number of observations (samples)
+  n = length(x)
+  
+  # Gradient Descent
+  for (i in 1:epochs) { # iterate over number of observations
+       
+    # Predicted values
+    ypred = x*w + b0
+    
+    # Calculate current gradients
+    grad_b0 = (-2/n)*sum(y - ypred)
+    grad_w = (-2/n)*sum(x*(y - ypred))
+    
+    # Update coefficients and bias(intercept)
+    b0 = b0 - l*grad_b0
+    w = w - l*grad_w
+  }
+  
+  return(c(b0, w))
+}
+
+# Perform gradient descent
+coefficients = ols_gradient_descent(x, y, l, epochs)
+
+# Print coefficients
+cat("Intercept:", coefficients[1], "\n")
+cat("Slope:", coefficients[2], "\n")
+
+# Compare coefficients/intercept with lm()
+lm_coeffs <- lm(y ~ x)$coefficients
+```
+
+
+###################### END OF LINEAR MODEL TASKS #######################################
+
+
+
+

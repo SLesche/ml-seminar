@@ -1,0 +1,122 @@
+---
+title: "Neural Nets"
+output: html_notebook
+---
+
+
+```{r}
+# Load packages 
+packs = c('tidyverse',  'caTools', 'mltools', 'psych',  'caret')
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(packs, update=F, character.only = T)
+
+### Tensorflow install
+#install.packages("tensorflow") #Download dependencies
+library(tensorflow)# Activate download
+#install_tensorflow(version = '2.16') # Install Tf, this may take some while
+
+# Install KERAS
+#install.packages('keras3')
+library(keras3)
+```
+### Eval Function: RMSE + R2
+```{r}
+# Eval function
+eval_metrics = function(pred, true){
+  SSE <- sum((pred - true)^2)
+  SST <- sum((true - mean(true))^2)
+  R_square <- 1 - SSE / SST
+  RMSE = sqrt(SSE/nrow(true))
+  #print in a dataframe
+  data.frame(
+  RMSE = RMSE,
+  Rsquare = R_square)
+  }
+```
+
+```{r}
+# Load data
+df = read.csv('Insurance_c.csv')
+df = df %>% 
+  mutate_at(vars(sex, smoker, region), funs(as.factor(.)))
+
+# set seed for reproducibility
+set.seed(0)
+
+# split dataset into train - test (ratio: 90%/10%) // Hint: use the split function from "caTools"
+split = sample.split(df$charges, 9/10)
+train = subset(df, split == T)
+test = subset(df, split == F)
+
+# preprocess: scaling min-max 
+pp = preProcess(df, method = 'range') 
+train = predict(pp, train)
+test = predict(pp, test)
+
+# One hot encoding
+train_ohe = one_hot(data.table::as.data.table(train))
+test_ohe = one_hot(data.table::as.data.table(test))
+
+# Split datasets in input - output, make matrices
+x_train = train_ohe %>% select(-charges) %>% data.matrix()
+y_train = train_ohe %>% select(charges) %>% data.matrix()
+x_test = test_ohe %>% select(-charges) %>% data.matrix()
+y_test = test_ohe %>% select(charges )%>% data.matrix()
+
+```
+
+```{r}
+# Create model
+model = keras_model_sequential() 
+model %>% 
+  layer_dense(units = 64, activation = "relu", input_shape = dim(x_train)[2]) %>% 
+  layer_dense(units = 64, activation = "relu") %>%
+  layer_dense(units = 64, activation = "relu") %>%
+  layer_dense(units = 1, activation = "linear")
+
+# Compile model
+model %>% compile(
+  loss = 'mse',
+  optimizer = optimizer_adam(),
+  metrics = 'mse'
+)
+
+# Train model
+history = model %>% fit(
+  x_train, y_train, 
+  epochs = 100, batch_size = 32
+)
+
+#train set performance
+pred = predict(model, x_train)
+eval_metrics(pred, y_train)
+
+#test set performance
+pred = predict(model, x_test)
+eval_metrics(pred, y_test)
+
+```
+
+####################### YOUR TURN! ########################
+Do the same operations for your "Grade" dataset!
+
+```{r}
+# Load packages 
+packs = c('tidyverse',  'caTools', 'mltools', 'psych', 'caret')
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(packs, update=F, character.only = T)
+
+### Tensorflow install
+install.packages("tensorflow") #Download dependencies
+library(tensorflow)# Activate download
+install_tensorflow() # Install Tf, this may take some while; you may have to specify a version if the installation fails. Try: install_tensorflow(version = '2.16')
+
+# Install KERAS
+install.packages('keras3')
+library(keras3)
+```
+
+```{r}
+### Add code here ###
+```
+

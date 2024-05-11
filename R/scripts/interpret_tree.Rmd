@@ -1,0 +1,103 @@
+---
+title: "interpret_tree"
+output: html_notebook
+---
+
+```{r}
+# Load packages
+packs = c('tidyverse', 'mltools', 'psych', 'rsample', 'caTools', 'rpart','caret', 'rpart.plot', 'randomForest', 'hstats', 'treeshap', 'shapviz')
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(packs, update=F, character.only = T)
+```
+
+```{r}
+#Read data
+df = read.csv('Insurance.csv')
+df = df %>% 
+  mutate_at(vars(sex, smoker, region), funs(as.factor(.)))
+df = df %>% na.omit() %>% select(-X)
+
+set.seed(42)
+split = sample.split(df$charges, 9/10)
+train = subset(df, split == T)
+test = subset(df, split == F)
+
+eval_metrics = function(pred, true){
+  SSE = sum((pred - true)^2)
+  SST = sum((true - mean(true))^2)
+  R_square = 1 - SSE / SST
+  RMSE = sqrt(SSE/nrow(true))
+  data.frame(
+  RMSE = RMSE,
+  Rsquare = R_square)
+  }
+```
+
+
+```{r}
+# 1. Step: Split train and test set into X_train, y_train; X_test, y_test
+xtrain = train %>% select(-charges) 
+xtest = test %>% select(-charges) 
+ytrain = train %>% select(charges) %>% data.matrix()
+ytest = test %>% select(-charges)  %>% data.matrix()
+```
+
+
+```{r}
+## Random Forest
+set.seed(0)
+rf = randomForest(charges ~ ., data = train, ntree=300, nodesize=10)
+
+#train set performance
+pred = predict(rf)
+eval_metrics(pred, ytrain)
+
+# calculate feature importance 
+imp = hstats::perm_importance(rf, xtrain, ytrain, loss = 'squared_error', normalize = T)
+plot(imp) +
+  ggtitle("PFI") +
+  xlab('Reduction in MSE (compared to average loss) when predictor included')
+```
+
+
+```{r}
+set.seed(0)
+# encode cat vars (necessary for treeshap)
+train = one_hot(data.table::as.data.table(train), cols = c('region'))
+train = train %>% # make binary factors numeric (easier interpretation)
+  mutate_at(vars(smoker, sex), funs(as.numeric))
+
+# Fit model 
+rf = randomForest(charges ~ ., data = train, ntree=300, nodesize=10)
+
+# prepare model for viz & calc shap
+unified_model = randomForest.unify(rf, data.matrix(select(train, -charges)))
+treeshap = treeshap(unified_model, data.matrix(select(train, -charges))) # may take some while
+
+
+# Plotting
+shap_values = shapviz(treeshap)
+sv_importance(shap_values, show_numbers = T)
+sv_importance(shap_values, kind='bee')
+sv_dependence(shap_values, v = c('smoker','bmi', 'age'))
+plot_contribution(treeshap, obs= 2)+
+  ggtitle('SHAP Break-down: Sample no.2')+
+  ylab('SHAP value')
+```
+
+
+####################### YOUR TURN! ########################
+Do the same operations for your "Grade" dataset!
+
+1. TASK: PERMUTATION FEATURE IMPORTANCE RANDOM FOREST
+
+```{r}
+### Add code here ###
+```
+
+2. TASK: SHAP VALUES RANDOM FOREST REGRESSION
+
+```{r}
+### Add code here ###
+```
+

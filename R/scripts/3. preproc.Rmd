@@ -1,0 +1,199 @@
+---
+title: "PreProcess & Tidyverse"
+output: html_notebook
+---
+
+ILLUSTRATION BASIC DATA PREPROCESSING
+
+Dataset: Records of >1000 people's insurance charges and medical data ##
+Objectives: Apply Tidyverse & PipeOperations; PreProcessing of data to predict charges from other variables in dataframe
+
+```{r}
+# Load packages
+packs = c('tidyverse', 'caTools', 'mltools', 'data.table','gridExtra', 'psych', 'Hmisc')
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(packs, update=F, character.only = T)
+
+# read in data
+df = read.csv('../data/Insurance.csv', sep = ",")
+```
+
+START TASK: DATA PROCESSING "GRADE" 
+
+```{r}
+#### Read in data: GRADE
+df <- data.table::fread("../data/grade.csv")
+
+```
+
+
+1. STEP: Data overview
+
+```{r}
+# First overview
+head(df)
+```
+
+```{r}
+# Recoding of variables to match their type
+df = df %>% 
+  mutate_at(vars(-c(age, absences, G1, G2, G3)), list(as.factor))
+```
+
+
+```{r}
+### Dataset overview (general)
+head(df)
+
+#numeric variables
+df %>% 
+  select(where(is.numeric)) %>% # get all factors
+  psych::describe(.)
+
+# Factors
+df %>% 
+  select(where(is.factor)) %>% # get all factors
+  summary(.) # get counts for each factor
+
+# NAs
+print(sum(!complete.cases(df))) #Check how many incomplete cases
+
+df %>% 
+  summarise(across(everything(), ~ sum(is.na(.)))) # Check NAs per column --> Systematic?
+
+df= df %>% # Drop rows NAs for criterion == charges
+  mutate(failed = ifelse(G3 == 0, 1, 0)) %>% 
+  drop_na(G3) %>% 
+  filter(failed == 0) %>% 
+  select(-failed)
+```
+
+```{r}
+### Check distributions
+# distribution of outcome: charges 
+p = 
+  ggplot(df, aes(x = G3)) +
+  geom_histogram(aes(y = ..density..), bins=100, color = 'black', fill = "white")+
+  geom_density(alpha=.2)
+print(p)
+
+
+#general distribution of other numerical variables
+num_vars = df %>% # get num var - X and charges
+  select(where(is.numeric)) %>%
+  select(-G3) %>%
+  names()
+
+plots = lapply(num_vars, function(var) {
+  ggplot(df, aes(x = !!sym(var))) +
+    geom_density(color = "red") +
+    labs(title = var, x = var, y = "Density") +
+    theme_minimal()
+})
+
+grid.arrange(grobs = plots, ncol = 2)
+
+# Plot charges by other vars in boxplots
+# by factors
+fac_vars = df %>%
+  select(where(is.factor)) %>%
+  names()
+
+plots = lapply(fac_vars[1:10], function(var) {
+  ggplot(df, aes(x = !!sym(var), y = G3)) +
+    geom_boxplot(fill='#A4A4A4', color="black", notch = T, na.rm=T) +
+    labs(title = var, x = var, y = "Charges") +
+    theme_minimal()
+})
+grid.arrange(grobs = plots, ncol = 2)
+
+# by numeric
+plots = lapply(num_vars, function(var) {
+  ggplot(df, aes(x = !!sym(var), y = charges)) +
+    geom_point(fill='#A4A4A4', color="black", na.rm=T) +
+    geom_smooth()+
+    labs(title = var, x = var, y = "Charges") +
+    theme_minimal()
+})
+grid.arrange(grobs = plots, ncol = 2)
+
+```
+
+What do you see? 
+# --> Possible interactions between variables on charges, account for that?
+
+
+2. Step: Recoding, feature engineering
+
+```{r}
+### Feature engineering, just to demonstrate
+# NAs as additional factor level
+df = df %>% 
+  mutate_if(is.factor, addNA)
+
+# dichotomize bmi (>30)
+data.table::fwrite(df, "../data/grade_preproc.csv")
+```
+
+3. Step: Train Test Split and further preproc (scaling, imputation, etc.)
+
+```{r}
+# OHE encoding of factors
+df = mltools::one_hot(data.table(df),cols=colnames(df)[!grepl("^G\\d", colnames(df))])
+
+# train test split, ratio: 80/20
+split = sample.split(df$charges, 8/10)
+df_train = subset(df, split == T)
+df_test = subset(df, split == F)
+df_test = drop_na(df_test) # drop NAs on test set --> IID and to not fool ourselves
+
+# Imputation missings on train set using median, optionally: specify as new df for comparison to un-imputed df
+# Note: NO IMP on test set --> IID assumption, data leakage
+imp = function(x) {
+  ifelse(is.na(x), median(x, na.rm=T), x)
+}
+
+df_train = df_train %>%
+  mutate_at(vars(age),imp)
+
+# scale outcome and features on both sets
+df_train = df_train %>%
+  mutate(across(c(age, charges), ~ c(scale(.))))
+
+df_test = df_test %>%
+  mutate(across(c(age, charges), ~ c(scale(.))))
+
+# check everything
+head(df_train)
+head(df_test)
+
+#Save Dfs
+#write.csv2(df_train, file ='train_charges.csv')
+#write.csv2(df_test, file ='test_charges.csv')
+
+#Read back in
+#train = read.csv2('train_charges.csv')
+#test = read.csv2('test_charges.csv')
+```
+
+```{r}
+
+### Apply all the preprocessing steps we discussed to the dataset "grade.csv" ###
+### Information about the dataset and objective are listed in "readme.txt" ###
+
+# 1. First dataset overview
+
+# 2. Recoding of variables to match their type
+
+# 3. Full overview & check distributions, ranges, etc. 
+
+# 4. Feature engineering & NA handling
+
+# 5. Final preprocessing (Encoding, scaling, train-test split)
+
+# 6. Prediction
+
+```
+
+### END OF TASKS ###
+# -------------------------------------------------------------- #

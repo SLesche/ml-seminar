@@ -1,0 +1,210 @@
+---
+title: "CART_student"
+output: html_notebook
+---
+
+```{r}
+# Load packages
+packs = c('tidyverse', 'mltools', 'psych', 'rsample', 'data.table', 'rpart','caret', 'rpart.plot', 'randomForest')
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(packs, update=F, character.only = T)
+```
+
+```{r}
+#Read data and preprocess
+# Load data
+df = data.table::fread("../data/grade_preproc.csv") %>% 
+  mutate_at(vars(-c(age, absences, G1, G2, G3)), list(as.factor))
+split_data <- rsample::initial_validation_split(
+  df,
+  prop = c(0.8, 0.1)
+)
+
+training_data <- rsample::training(split_data)
+test_data <- rsample::testing(split_data)
+validation_data <- rsample::validation(split_data)
+
+# prepare data: encode factors, separate predictors (matrix format) and outcome (vector)
+train_ohe = one_hot(data.table::as.data.table(training_data))
+test_ohe = one_hot(data.table::as.data.table(test_data))
+x_train = model.matrix(G3~., train_ohe)[,-1]
+x_test = model.matrix(G3~., test_ohe)[,-1]
+y_train = train_ohe %>%
+  select(G3) %>%
+  unlist() %>%
+  as.numeric()
+
+y_test = test_ohe %>% 
+  select(G3) %>% 
+  unlist() %>% 
+  as.numeric()
+```
+
+
+```{r}
+# Custom evaluation metrics, you can just run it as is and use it later
+eval_metrics = function(pred, true){
+  SSE = sum((pred - true)^2)
+  SST = sum((true - mean(true))^2)
+  R_square = 1 - SSE / SST
+  RMSE = sqrt(SSE/length(true))
+  data.frame(
+  RMSE = RMSE,
+  Rsquare = R_square)
+  }
+```
+
+
+```{r}
+# 1. Step: Split train and test set into X_train, y_train; X_test, y_test; make ytrain & ytest vectors (data.matrix)
+xtrain = ### Add code here ###
+xtest = ### Add code here ###
+ytrain = ### Add code here ###
+ytest = ### Add code here ###
+```
+
+1. TASK: DECISION TREES & RANDOM FOREST REGRESSION
+
+```{r}
+###Decision Tree, use rpart; hyperparam setting: minsplit = 2, cp=0.001
+dec_tree_1 <- rpart(G3 ~., data = training_data, control = rpart.control(minsplit = 2, cp = 0.001))
+
+# get predictions and train set performance 
+pred_tree_one_train <- predict(dec_tree_1, training_data)
+train_perf_dec_tree_1 <- eval_metrics(pred_tree_one_train, y_train)
+
+# get predictions and test set performance 
+pred_tree_one_test <- predict(dec_tree_1, test_data)
+test_perf_dec_tree_1 <- eval_metrics(pred_tree_one_test, y_test)
+
+### Regularized Decision Tree, use rpart; hyperparam setting:  cp=0.01
+dec_tree_2 <- rpart(G3 ~., data = training_data, control = rpart.control(minsplit = 2, cp = 0.01))
+
+# get predictions and train set performance 
+pred_tree_two_train <- predict(dec_tree_2, training_data)
+train_perf_dec_tree_2 <- eval_metrics(pred_tree_two_train, y_train)
+
+# get predictions and test set performance 
+pred_tree_two_test <- predict(dec_tree_2, test_data)
+test_perf_dec_tree_2 <- eval_metrics(pred_tree_two_test, y_test)
+
+#Plot second, regularized tree
+rpart.plot(dec_tree_2)
+```
+
+```{r}
+### Fit a Random Forest, use randomForest; hyperparam setting: ntree=300, nodesize=10
+rforest_1 <- randomForest(G3 ~., data = training_data, ntree = 300, nodesize = 10)
+
+# get predictions and train set performance 
+pred_rforest_1_train <- predict(rforest_1, as.data.frame(training_data))
+train_perf_rforest_1 <- eval_metrics(pred_rforest_1_train, training_data$G3)
+
+# get predictions and test set performance 
+pred_rforest_1_test <- predict(rforest_1, test_data)
+test_perf_rforest_1 <- eval_metrics(pred_rforest_1_test, test_data$G3)
+
+```
+Which model would you prefer and why? 
+
+
+############## END TASK 1 ################
+
+
+2. TASK: DECISION TREES & RANDOM FOREST CLASSIFICATION
+
+```{r}
+#Read data "UniversalBank.csv" in 
+df = read.csv2('../data/UniversalBank.csv', sep = ",", header = T)
+
+#Load PreProc script
+source("../scripts/PP_Loan.R")
+
+# Run PreProcess script
+df = pp(df)
+
+df$ID = c()
+# Split dataset in train-val-test, ratio: 0.8; 0.1; 0.1
+set.seed(0)
+split_data <- rsample::initial_validation_split(
+  df,
+  prop = c(0.8, 0.1)
+)
+
+training_data <- rsample::training(split_data)
+test_data <- rsample::testing(split_data)
+validation_data <- rsample::validation(split_data)
+
+# Eval Function: Confusion Matrix & metrics, just run this and use later
+eval_metrics = function(pred, true){
+  cf = caret::confusionMatrix(factor(pred),factor(true))
+  #print
+  print(cf)
+  }
+```
+
+```{r}
+## Check distribution of classes on outcome y "Personal.Loan"
+table(training_data$Personal.Loan)
+
+# Under-/oversampling of train set. Hint: Use "downSample/upSample" from caret
+over_training_data <- upSample(training_data, training_data$Personal.Loan)
+over_training_data$Class = c()
+under_training_data <- downSample(training_data, training_data$Personal.Loan)
+under_training_data$Class = c()
+
+```
+
+
+```{r}
+# Split train and validation set into xtrain, ytrain; xval, yval. Make ytrain and yval vectors (data.matrix)
+x_train = model.matrix(Personal.Loan~., training_data)
+y_train = training_data$Personal.Loan
+x_val = model.matrix(Personal.Loan~., validation_data)
+y_val = validation_data$Personal.Loan
+
+x_test = model.matrix(Personal.Loan~., test_data)
+y_test = test_data$Personal.Loan
+```
+
+
+```{r}
+
+get_test_performance_dtree <- function(training_data, test_data, complexity = 0.01){
+  ### Run Decision Tree on train set, use rpart; hyperparam setting: cp=0.01
+  dec_tree_1 <- rpart(Personal.Loan ~ ., data = training_data, control = rpart.control( cp = complexity))
+  
+  # get predictions and train set performance 
+  pred_tree_one_train <- predict(dec_tree_1, training_data, type = "vector")
+  train_perf_dec_tree_1 <- eval_metrics(pred_tree_one_train, factor(training_data$Personal.Loan, levels = c(0, 1), labels = c(1, 2)))
+  
+  # get predictions and test set performance 
+  pred_tree_one_test <- predict(dec_tree_1, test_data, type = "vector")
+  test_perf_dec_tree_1 <- eval_metrics(pred_tree_one_test, factor(test_data$Personal.Loan, levels = c(0, 1), labels = c(1, 2)))
+  #Plot tree
+  rpart.plot(dec_tree_1)
+  
+  return(test_perf_dec_tree_1)
+}
+
+get_test_performance_dtree(over_training_data, test_data)
+get_test_performance_dtree(under_training_data, test_data)
+
+```
+
+```{r}
+### Run Random Forest on train set, use rpart; hyperparam setting: ntree=200, nodesize = 10
+rforest_1 <- randomForest(Personal.Loan ~., data = training_data, ntree = 200, nodesize = 10)
+
+# get predictions and train set performance 
+pred_rforest_1_train <- predict(rforest_1, training_data)
+train_perf_rforest_1 <- eval_metrics(pred_rforest_1_train, training_data$Personal.Loan)
+
+# get predictions and test set performance 
+pred_rforest_1_test <- predict(rforest_1, test_data)
+test_perf_rforest_1 <- eval_metrics(pred_rforest_1_test, test_data$Personal.Loan)
+
+
+```
+
+Which model would you prefer and why? If you want, you can also tinker with the hyperparameter settings and find better values!

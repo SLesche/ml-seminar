@@ -1,0 +1,119 @@
+---
+title: "Vector + matrix operations"
+output: html_notebook
+---
+
+TASK 1: Vector and matrix creation and multiplication
+```{r}
+library(tidyverse)
+```
+
+```{r}
+## 1. Step: Create a list of 30 vectors, each composed of 20 integers. The respective values of integers are irrelevant for now. Hint: Create a single vector first, repeat it and put it in a list
+get_vec_list <- function(n_vecs, n_elements, sample_elements = 1:10){
+    
+  vec_list <- vector(mode = "list", length = n_vecs)
+  
+  for (i in seq_along(vec_list)){
+    vec_list[[i]] = sample(sample_elements, n_elements, replace = TRUE)
+  }
+  return(vec_list)
+}
+
+## 2. Step: Convert this list of vectors to a matrix called "M". Hint: Use "matrix" and "unlist" function and specify dimensions. Make each vector in the list a row of the new matrix. 
+mat <- matrix(unlist(get_vec_list(30, 20)), nrow = 30, ncol = 20, byrow = TRUE)
+
+## 3. Step: Create another matrix from a list of 10 vectors, each composed of 20 integers, called "M2" Hint: Use "matrix" and "unlist" function and specify dimensions. Make each vector in the list a row of the new matrix. 
+
+mat2 <- matrix(unlist(get_vec_list(10, 20)), nrow = 10, ncol = 20, byrow = TRUE)
+
+## 4. Step: Try to multiply both matrices using "%*%". What do you notice? 
+mult <- mat %*% mat2
+
+
+## 5. Step: Try to multiply again, transposing the second matrix (==M2') before multiplication, name it "MM2t" (Hint: use t() to transpose matrix)
+mult_transpose <- mat %*% t(mat2)
+
+# Get dimensions of all matrices (M, M2, MM2t)
+dim(mat)
+dim(mat2)
+dim(t(mat2))
+dim(mult_transpose)
+
+# Looking at the dimensions of the original matrices and the product, what do you notice regarding the matrix dimensions? When does multiplication work, when does it fail? How do the dimensions of new matrices come about?
+
+# The dimensions of multiplied matrix will be dim1 of x ; dim2 of y. dim2 of x and dim1 of y need to be identical
+
+### space for thoughts ###
+
+```
+
+TASK 2: Putting it into action: Linear Regression using matrix multiplication without R lm function!
+
+```{r}
+# Load charges data, omit ID ('X') and split dataset into X (age, bmi) and y (charges) 
+data_path <- "../data/"
+
+data <- data.table::fread(paste0(data_path, "charges_matr.csv"))
+
+X <- data %>% 
+  select(age, bmi) %>% 
+  mutate(one_vec = 1) %>%
+  select(one_vec, age, bmi) %>%
+  as.matrix()
+
+Y <- data %>% select(charges) %>% as.matrix()
+
+# add a vector with only 1s to the beginning of the matrix X to get a 3 by n (sample size) matrix
+
+# get dimensions of matrices X and y
+dim(X)
+dim(Y)
+
+# calc tanspose of X (X'), get dimensions
+Xt = t(X)
+  
+# multiply X with transpose of X (X'X), get dimensions
+XtX = Xt %*% X
+dim(XtX)
+
+# calc inverse of X′X, hint: use "solve", get dimensions
+XtXinv = solve(XtX)
+dim(XtXinv)
+
+# calc coefficients 'b': inv(X′X) X′Y
+# before calculation: get dimensions of operands and figure out the final dimension of b! validate by getting dimensions of b after the multiplication 
+  
+### Dimensions of all operands: 3X3; 3X3; 3X1
+  ### Add code here ###
+
+b =  XtXinv %*% Xt %*% Y
+
+### Dimensions of b: Add code here ###
+dim(b)
+
+# print b (coefficients of regression)
+print(b)
+
+# run a linear regression model lm() with charges as outcome and age, bmi as predictors. Compare results of w with lm() function
+lm(charges ~ age + bmi, data = data)
+```
+
+TASK 3: Covariance and correlation calculation
+
+```{r}
+# Read in data "data_IPIP_cattel.csv"
+
+# Make it a matrix, scale and create transpose
+
+# Do the calculation according to the formula
+
+# Compare with cor function
+
+# Plot
+
+```
+
+
+### END OF TASKS ###
+# -------------------------------------------------------------- #
