@@ -1,66 +1,72 @@
 library(baseballr)
 library(tidyverse)
 
-id_map <- data.table::fread("baseball/player_id_map.csv") %>% 
+id_map <- data.table::fread("./archive/baseball/player_id_map.csv") %>% 
   rename("bbref_id" = BREFID)
 
-scherzer_info <- id_map %>% 
-  filter(PLAYERNAME == "Max Scherzer")
-
-scherzer_fg_id <- scherzer_info$IDFANGRAPHS
-scherzer_mlb_id <- scherzer_info$MLBID
-scherzer_mlb_info <- mlb_people(scherzer_mlb_id)
-scherzer_debut_date <- scherzer_mlb_info$mlb_debut_date
-scherzer_active <- scherzer_mlb_info$active
-scherzer_active_time <- c(lubridate::year(scherzer_debut_date), lubridate::year(lubridate::today()))
-
-active_years <- numeric()
-for (i in 1:(scherzer_active_time[2] - scherzer_active_time[1] + 1)){
-  active_years[i] = as.numeric(scherzer_active_time[1]) + i - 1
-}
-
-season_info <- data.frame(begin = 1:length(active_years), end = 1:length(active_years))
-all_seasons <- mlb_seasons_all()
-
-for (i in seq_along(active_years)){
-  season_info$begin[i] = as.character(all_seasons[which(all_seasons$season_id == active_years[i]), "regular_season_start_date"])
-  season_info$end[i] = as.character(all_seasons[which(all_seasons$season_id == active_years[i]), "regular_season_end_date"])
-}
-
-scherzer_game_logs <- list() 
-for (i in seq_along(active_years)){
-  scherzer_game_logs[[i]] = statcast_search_pitchers(
-    start_date = season_info$begin[i],
-    end_date = season_info$end[i],
-    pitcherid = scherzer_mlb_id
-  )
-}
-
-scherzer_game_ids <- numeric()
-for (i in seq_along(scherzer_game_logs)){
-  scherzer_game_ids = c(scherzer_game_ids, unique(scherzer_game_logs[[i]]$game_pk))
-}
-
-scherzer_pbp <- list()
-for (i in seq_along(scherzer_game_ids)){
-  scherzer_pbp[[i]] = try(mlb_pbp(scherzer_game_ids[i]))
-}
-
-scherzer_errors <- numeric()
-for (i in seq_along(scherzer_pbp)){
-  if (all(is.na(scherzer_pbp[[i]][2]))){
-    scherzer_errors = c(scherzer_errors, i)
+get_pbp_data <- function(player_name, id_map){
+  player_info <- id_map %>% 
+    filter(PLAYERNAME == player_name)
+  
+  fg_id <- player_info$IDFANGRAPHS
+  mlb_id <- player_info$MLBID
+  mlb_info <- mlb_people(mlb_id)
+  debut_date <- mlb_info$mlb_debut_date
+  active <- mlb_info$active
+  active_time <- c(lubridate::year(debut_date), lubridate::year(lubridate::today()))
+  
+  active_years <- numeric()
+  for (i in 1:(active_time[2] - active_time[1] + 1)){
+    active_years[i] = as.numeric(active_time[1]) + i - 1
   }
+  
+  season_info <- data.frame(begin = 1:length(active_years), end = 1:length(active_years))
+  all_seasons <- mlb_seasons_all()
+  
+  for (i in seq_along(active_years)){
+    season_info$begin[i] = as.character(all_seasons[which(all_seasons$season_id == active_years[i]), "regular_season_start_date"])
+    season_info$end[i] = as.character(all_seasons[which(all_seasons$season_id == active_years[i]), "regular_season_end_date"])
+  }
+  
+  game_logs <- list() 
+  for (i in seq_along(active_years)){
+    game_logs[[i]] = statcast_search_pitchers(
+      start_date = season_info$begin[i],
+      end_date = season_info$end[i],
+      pitcherid = mlb_id
+    )
+  }
+  
+  game_ids <- numeric()
+  for (i in seq_along(game_logs)){
+    game_ids = c(game_ids, unique(game_logs[[i]]$game_pk))
+  }
+  
+  pbp <- list()
+  for (i in seq_along(game_ids)){
+    pbp[[i]] = try(mlb_pbp(game_ids[i]))
+  }
+  
+  errors <- numeric()
+  for (i in seq_along(pbp)){
+    if (all(is.na(pbp[[i]][2]))){
+      errors = c(errors, i)
+    }
+  }
+  
+  clean_pbp <- pbp[- errors]
+  
+  pbp_data <- data.table::rbindlist(clean_pbp, fill = TRUE) 
+  
+  final_data <- pbp_data %>% 
+    filter(matchup.pitcher.id == as.character(mlb_id)) %>% 
+    janitor::remove_empty() %>% 
+    janitor::clean_names()
+  
+  return(final_data)
 }
 
-scherzer_clean_pbp <- scherzer_pbp[- scherzer_errors]
-
-scherzer_pbp_data <- data.table::rbindlist(scherzer_clean_pbp, fill = TRUE) 
-
-scherzer_only_data <- scherzer_pbp_data %>% 
-  filter(matchup.pitcher.id == as.character(scherzer_mlb_id)) %>% 
-  janitor::remove_empty() %>% 
-  janitor::clean_names()
+data <- get_pbp_data("Max Scherzer", id_map)
 
 data.table::fwrite(scherzer_only_data, "baseball/scherzer_data.csv")
 
