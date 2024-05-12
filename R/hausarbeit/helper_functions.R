@@ -176,3 +176,55 @@ plot_pitch_by_batter <- function(data){
       fill = "Pitch Name"
     )
 }
+
+plot_pitch_velocity <- function(data){
+  data %>% 
+    mutate(velocity = release_speed*1.6093) %>% 
+    ggplot(aes(x = velocity, fill = pitch_name))+
+    geom_density(alpha = 0.5)+
+    labs(
+      title = "Pitch Velocity",
+      caption = "Data: Baseball Savant via baseballr", 
+      x = "Pitch Velocity (km/h)",
+      y = "",
+      fill = "Pitch Name"
+    )+
+    theme_minimal()
+}
+
+# Make a "Will it dong" Model
+# Or my own xBA model, compare to the existing xBA
+
+prep_for_ml <- function(data){
+  
+  data_ml = data %>% 
+    arrange(game_pk, inning, at_bat_number, pitch_number) %>% 
+    group_by(game_pk) %>% 
+    mutate(
+      pitch_count_total = row_number()
+    ) %>% 
+    group_by(game_pk, inning) %>% 
+    mutate(
+      # Previous info on Pitch Type, Speed, Location, Outcome
+      # Maybe make the depth the model can see variable
+      # And also make it variable if grouped only within at bat or across
+      previous_pitch_type = lag(pitch_type),
+      previous_pitch_zone = lag(result_pitch_zone),
+      previous_pitch_code = lag(result_pitch_code),
+    ) %>% 
+    group_by(game_pk, inning, at_bat_number) %>% 
+    mutate(
+      true_balls = lag(pitch_count_balls),
+      true_strikes = lag(pitch_count_strikes)
+    ) %>% 
+    ungroup() %>% 
+    mutate(
+      true_balls = ifelse(is.na(true_balls) & is.na(true_strikes), 0, true_balls),
+      true_strikes = ifelse(true_balls == 0 & is.na(true_strikes), 0, true_strikes)
+    ) %>% 
+    filter(!is.na(result_pitch_zone), true_strikes != 3, true_balls != 4) %>% 
+    rowwise() %>% 
+    mutate(men_on_base = sum(man_on_first, man_on_second, man_on_third)) %>% 
+    ungroup() %>% 
+    mutate(count = factor(paste0(true_balls, ", ", true_strikes)))
+}
