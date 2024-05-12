@@ -1,0 +1,52 @@
+#### Overview Variables Titanic Train Dataset #####
+
+Variable	Definition					Key
+
+Passenger ID	Running number
+Survived 	Survival 					0 = No, 1 = Yes
+pclass 		Ticket class 					1 = 1st, 2 = 2nd, 3 = 3rd
+Name		Name of Passenger
+sex 		Sex 						"female", "male" 
+Age 		Age in years 	
+sibsp 		# of siblings / spouses aboard the Titanic 	
+parch 		# of parents / children aboard the Titanic 	
+ticket 		Ticket number 	
+fare 		Passenger fare
+Cabin		Cabin Desciption of Passenger 	
+embarked 	Port of Embarkation 				C = Cherbourg, Q = Queenstown, S = Southampton
+Title 		Title of passenger
+Surname		Last name of Passenger
+
+
+
+Instructions for PreProcessing:
+You can bind the train and test to a full dataset for variable recoding and feature engineering, e.g.
+
+full = bind_rows(train, test)
+
+After you're done with initial preprocessing, split them apart once again for further processing. 
+You can do this by looking at the no. of rows each dataset had in the beginning, e.g.
+
+train = full[1:764,]
+test = full[765:891,]
+
+Please do it this way, so we can assure that each group has the identical train and test set for final performance comparison and that prediction on the test set works. 
+
+
+Variable Notes
+
+pclass: A proxy for socio-economic status (SES)
+1st = Upper
+2nd = Middle
+3rd = Lower
+
+age: Age is fractional if less than 1 (babies). If the age is estimated, is it in the form of xx.5
+
+sibsp: The dataset defines family relations in this way...
+Sibling = brother, sister, stepbrother, stepsister
+Spouse = husband, wife (mistresses and fiancés were ignored)
+
+parch: The dataset defines family relations in this way...
+Parent = mother, father
+Child = daughter, son, stepdaughter, stepson
+Some children travelled only with a nanny, therefore parch=0 for them.
