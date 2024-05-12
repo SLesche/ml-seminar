@@ -11,12 +11,12 @@ if (!require("pacman")) install.packages("pacman")
 pacman::p_load(packs, update=F, character.only = T)
 
 ### Tensorflow install
-#install.packages("tensorflow") #Download dependencies
+# install.packages("tensorflow") #Download dependencies
 library(tensorflow)# Activate download
-#install_tensorflow(version = '2.16') # Install Tf, this may take some while
+# install_tensorflow(version = '2.16') # Install Tf, this may take some while
 
 # Install KERAS
-#install.packages('keras3')
+# install.packages('keras3')
 library(keras3)
 ```
 ### Eval Function: RMSE + R2
@@ -26,7 +26,7 @@ eval_metrics = function(pred, true){
   SSE <- sum((pred - true)^2)
   SST <- sum((true - mean(true))^2)
   R_square <- 1 - SSE / SST
-  RMSE = sqrt(SSE/nrow(true))
+  RMSE = sqrt(SSE/length(true))
   #print in a dataframe
   data.frame(
   RMSE = RMSE,
@@ -36,15 +36,15 @@ eval_metrics = function(pred, true){
 
 ```{r}
 # Load data
-df = read.csv('Insurance_c.csv')
-df = df %>% 
-  mutate_at(vars(sex, smoker, region), funs(as.factor(.)))
+df = read.csv('../data/grade_preproc.csv')
 
+df = df %>% 
+  mutate_at(vars(-c(age, absences, G1, G2, G3)), list(as.factor))
 # set seed for reproducibility
 set.seed(0)
 
 # split dataset into train - test (ratio: 90%/10%) // Hint: use the split function from "caTools"
-split = sample.split(df$charges, 9/10)
+split = sample.split(df$G3, 9/10)
 train = subset(df, split == T)
 test = subset(df, split == F)
 
@@ -58,10 +58,10 @@ train_ohe = one_hot(data.table::as.data.table(train))
 test_ohe = one_hot(data.table::as.data.table(test))
 
 # Split datasets in input - output, make matrices
-x_train = train_ohe %>% select(-charges) %>% data.matrix()
-y_train = train_ohe %>% select(charges) %>% data.matrix()
-x_test = test_ohe %>% select(-charges) %>% data.matrix()
-y_test = test_ohe %>% select(charges )%>% data.matrix()
+x_train = train_ohe %>% select(-G3) %>% data.matrix()
+y_train = train_ohe %>% select(G3) %>% data.matrix()
+x_test = test_ohe %>% select(-G3) %>% data.matrix()
+y_test = test_ohe %>% select(G3 )%>% data.matrix()
 
 ```
 
@@ -84,7 +84,7 @@ model %>% compile(
 # Train model
 history = model %>% fit(
   x_train, y_train, 
-  epochs = 100, batch_size = 32
+  epochs = 100, batch_size = 40
 )
 
 #train set performance
@@ -107,12 +107,12 @@ if (!require("pacman")) install.packages("pacman")
 pacman::p_load(packs, update=F, character.only = T)
 
 ### Tensorflow install
-install.packages("tensorflow") #Download dependencies
+# install.packages("tensorflow") #Download dependencies
 library(tensorflow)# Activate download
-install_tensorflow() # Install Tf, this may take some while; you may have to specify a version if the installation fails. Try: install_tensorflow(version = '2.16')
+# install_tensorflow() # Install Tf, this may take some while; you may have to specify a version if the installation fails. Try: install_tensorflow(version = '2.16')
 
 # Install KERAS
-install.packages('keras3')
+# install.packages('keras3')
 library(keras3)
 ```
 
