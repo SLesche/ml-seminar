@@ -47,7 +47,64 @@ ml_ohe <- mltools::one_hot(data.table::as.data.table(ml_data)) %>%
 
 split_data <- rsample::initial_validation_split(ml_ohe, c(0.9, 0.05))
 
-training_data <- rsample::training(split_data)
+training_data <- rsample::training(split_data) %>% 
+  select(-starts_with("lag2"), -starts_with("lag3"),-starts_with("lag4"),-starts_with("lag5")) %>% 
+  na.omit()
+
+x_train = model.matrix(pitch_type~., training_data)[,-1]
+x_test = model.matrix(pitch_type~., test_ohe)[,-1]
+y_train = training_data %>%
+  select(pitch_type) %>%
+  unlist() %>%
+  as.numeric()
+
+set.seed(0)
+#find optimal lambda value that minimizes MSE on train set
+nFolds = 10
+foldid = sample(rep(seq(nFolds), length.out = nrow(training_data)))
+library(glmnet)
+cv_model = glmnet::cv.glmnet(x = as.matrix(x = x_train), 
+                     y = y_train, alpha = 1, 
+                     nfolds = nFolds,
+                     foldid = foldid,
+                     family = "multinomial")
+best_lambda = cv_model$lambda.min
+
+# fit best model
+best_model = glmnet::glmnet(x_train, y_train, alpha = 1, lambda = best_lambda, family = "multinomial")
+
+### Evaluate model 2 ##
+# predict raw values for the train set and test set
+predictions2 = predict(best_model, s=best_lambda, newx=x_train, type = "response")
+predictions_test2 = predict(best_model, s = best_lambda, newx = x_test)
+
+# # calculate and print r2 and rmse scores for train and test set
+score_train1 = eval_metrics(predictions2, training_data$pitch_type)
+print(c("Score Train Model 2: LASSO Regression", score_train1))
+
+score_test1 = eval_metrics(predictions_test2, test_ohe$G3)
+print(c("Score Test Model 2: LASSO Regression", score_test1))
+# fit best model
+best_model = glmnet(
+  training_data %>% select(-!!sym(outcome_var)),
+  training_data %>% select(!!sym(outcome_var)),
+  alpha = 0, 
+  lambda = best_lambda,
+  family = "multinom"
+)
+
+predictions = predict(best_model, s=best_lambda, newx=training_data[, -outcome_var])
+predictions_test = predict(best_model, s = best_lambda, newx = testing_data[, -outcome_var])
+
+# # calculate and print r2 and rmse scores for train and test set
+score_train = eval_metrics(predictions, training_data[, outcome_var])
+print(c("Score Train: RIDGE Regression", score_train1))
+
+score_test = eval_metrics(predictions_test, testing_data[, outcome_var])
+print(c("Score Test: RIDGE Regression", score_test1))
+
+nrow(na.omit(training_data))
+
 validation_data <- rsample::validation(split_data)
 testing_data <- rsample::testing(split_data)
 

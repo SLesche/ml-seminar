@@ -197,6 +197,7 @@ plot_pitch_velocity <- function(data){
 
 prep_for_ml <- function(data){
   # Make variable: distance from intended, which is mean of the position given some variables
+  # Get average pitch mix as additional variable
   relevant_variables = c(
     "game_year",
     "inning",
@@ -352,6 +353,8 @@ prep_for_ml <- function(data){
     select(
       all_of(c("game_pk", relevant_variables, lag_variables))
     )
+  
+  data_ml[is.na(data_ml)] = 0
   
   data_lagged_ml = data_ml %>%
     group_by(
