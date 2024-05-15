@@ -199,8 +199,11 @@ prep_for_ml <- function(data){
   # Make variable: distance from intended, which is mean of the position given some variables
   relevant_variables = c(
     "game_year",
+    "inning",
+    "pitch_count_total",
+    "pitch_number",
     "stand",
-    "home_team",
+    "opponent_team",
     "on_3b",
     "on_2b",
     "on_1b",
@@ -211,10 +214,13 @@ prep_for_ml <- function(data){
     "inning_topbot",
     "bat_score",
     "fld_score",
-    "score_difference"
+    "score_difference",
+    "if_fielding_alignment",
+    "of_fielding_alignment"
   )
   lag_variables = c(
     "pitch_type", 
+    "is_fastball",
     "release_speed", 
     "events", 
     "description", 
@@ -230,20 +236,25 @@ prep_for_ml <- function(data){
     "hit_distance_sc",
     "launch_speed",
     "launch_angle",
-    "barrelled",
+    "barrel",
+    "sweet_spot",
+    "hard_hit",
     "effective_speed",
     "release_spin_rate",
     "estimated_ba_using_speedangle",
     "estimated_woba_using_speedangle",
     "dodged_a_hit", # Estimated ba > 0.5
-    "got_hit", # hit in last pa
+    "is_hit", # hit in last pa
+    "is_base",
     "launch_speed_angle",
     "release_extension",
     "spin_axis",
     "delta_home_win_exp",
-    "delta_home_run_exp",
+    "delta_run_exp",
     "yanked"
   )
+  
+  data[data == ""] = NA
   
   intended_target = data %>% 
     group_by(game_year, stand, pitch_type, balls, strikes) %>% 
@@ -251,7 +262,7 @@ prep_for_ml <- function(data){
       intended_x = mean(pfx_x_in_pv, na.rm = TRUE),
       intended_z = mean(pfx_z_in, na.rm = TRUE)
     ) %>% ungroup()
-  
+
   data_ml = data %>% 
     left_join(., intended_target) %>% 
     arrange(game_pk, inning, at_bat_number, pitch_number) %>% 
@@ -264,17 +275,96 @@ prep_for_ml <- function(data){
            balls, strikes,
            pitch_name, description, delta_run_exp, everything()) %>% 
     mutate(
-      men_on_base = rowSums(!is.na(select(., starts_with("on_")))),
+      across(starts_with("on_"), ~!is.na(.)),
+    ) %>% 
+    mutate(
+      men_on_base = rowSums(select(., starts_with("on_"))),
       runners_in_scoring_position = ifelse(
-        !is.na(on_2b) | !is.na(on_3b),
+        on_2b | on_3b,
         1,
         0
       ),
       score_difference = fld_score - bat_score,
       dodged_a_hit = ifelse(estimated_ba_using_speedangle > 0.5, 1, 0),
-      distance_from_intended = sqrt((pfx_x_in_pv - intended_x)^2 + (pfx_z_in - intended_z)^2)
+      distance_from_intended = sqrt((pfx_x_in_pv - intended_x)^2 + (pfx_z_in - intended_z)^2),
+      opponent_team = ifelse(
+        inning_topbot == "Bot",
+        home_team,
+        away_team
+      ),
+      sweet_spot = ifelse(launch_angle > 8 & launch_angle < 32, 1, 0),
+      hard_hit = ifelse(launch_speed > 95, 1, 0),
+      is_hit = ifelse(
+        events %in% c("double", "home_run", "sac_fly", "single", "triple"),
+        1,
+        0
+      ),
+      is_base = ifelse(
+        events %in% c("double", "home_run", "sac_fly", "single", "triple",
+                      "walk", "hit_by_pitch", "intent_walk"),
+        1,
+        0
+      ),
+      is_fastball = ifelse(
+        pitch_type %in% c("FC", "FF", "SI"),
+        1,
+        0
+      )
     ) %>% 
     mutate(
-      yanked = ifelse(distance_from_intended > 7, 1, 0)
+      yanked = ifelse(distance_from_intended > 7, 1, 0),
+      barrel = ifelse(sweet_spot + hard_hit == 2, 1, 0)
+    ) %>% 
+    mutate(
+      across(
+        c("game_year",
+          "stand",
+          "opponent_team",
+          "inning_topbot",
+          "events", 
+          "description", 
+          "zone",
+          "hit_location",
+          "bb_type",
+          "if_fielding_alignment",
+          "of_fielding_alignment"
+          ),
+        ~addNA(factor(.))
+      )
+    ) %>% 
+    mutate(
+      across(
+        c("game_year",
+          "stand",
+          "opponent_team",
+          "inning_topbot",
+          "events", 
+          "description", 
+          "zone",
+          "hit_location",
+          "bb_type",
+          "if_fielding_alignment",
+          "of_fielding_alignment"
+        ),
+        ~fct_lump_min(.,min = 100)
+      )
+    ) %>% 
+    select(
+      all_of(c("game_pk", relevant_variables, lag_variables))
     )
+  
+  data_lagged_ml = data_ml %>%
+    group_by(
+      game_pk, inning
+    ) %>% 
+    mutate(
+      across(lag_variables, ~lag(., 1), .names = "lag1_{.col}"),
+      across(lag_variables, ~lag(., 2), .names = "lag2_{.col}"),
+      across(lag_variables, ~lag(., 3), .names = "lag3_{.col}"),
+      across(lag_variables, ~lag(., 4), .names = "lag4_{.col}"),
+      across(lag_variables, ~lag(., 5), .names = "lag5_{.col}"),
+    ) %>% 
+    ungroup()
+    
+    return(data_lagged_ml)
 }

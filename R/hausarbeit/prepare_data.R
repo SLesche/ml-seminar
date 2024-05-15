@@ -39,6 +39,17 @@ plot_pitch_velocity(clean_data %>% filter(game_year > 2018))
 
 # Recoding Data
 # Get info on previous pitch outcomes, previous at bat outcomes
+ml_data <- clean_data %>% filter(game_year > 2018) %>%  prep_for_ml()
+
+ml_ohe <- mltools::one_hot(data.table::as.data.table(ml_data)) %>% 
+  mutate(pitch_type = fct_lump_min(addNA(pitch_type), 100))
+
+
+split_data <- rsample::initial_validation_split(ml_ohe, c(0.9, 0.05))
+
+training_data <- rsample::training(split_data)
+validation_data <- rsample::validation(split_data)
+testing_data <- rsample::testing(split_data)
 
 
 # Which ML Models to try out?
