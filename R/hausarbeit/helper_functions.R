@@ -198,7 +198,9 @@ plot_pitch_velocity <- function(data){
 prep_for_ml <- function(data){
   # Make variable: distance from intended, which is mean of the position given some variables
   # Get average pitch mix as additional variable
+  available_pitches = unique(data$pitch_type)
   relevant_variables = c(
+    paste0("freq_", available_pitches),
     "game_year",
     "inning",
     "pitch_count_total",
@@ -263,9 +265,26 @@ prep_for_ml <- function(data){
       intended_x = mean(pfx_x_in_pv, na.rm = TRUE),
       intended_z = mean(pfx_z_in, na.rm = TRUE)
     ) %>% ungroup()
+  
+  pitch_mix = data %>% 
+    group_by(game_year, stand, balls, strikes) %>%
+    count(pitch_type) %>% 
+    mutate(
+      freq = n / sum(n)
+    ) %>% 
+    filter(pitch_type != "") %>% 
+    pivot_wider(
+      id_cols = c("game_year", "stand", "balls", "strikes"),
+      names_from = pitch_type,
+      values_from = freq,
+      names_prefix = "freq_"
+    )
+  
+  pitch_mix[is.na(pitch_mix)] = 0
 
   data_ml = data %>% 
     left_join(., intended_target) %>% 
+    left_join(., pitch_mix) %>% 
     arrange(game_pk, inning, at_bat_number, pitch_number) %>% 
     group_by(game_pk) %>% 
     mutate(

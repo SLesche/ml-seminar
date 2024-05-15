@@ -43,14 +43,14 @@ plot_pitch_velocity(clean_data %>% filter(game_year > 2018))
 ml_data <- clean_data %>% filter(game_year > 2018) %>%  prep_for_ml()
 
 ml_ohe <- mltools::one_hot(data.table::as.data.table(ml_data)) %>% 
-  mutate(pitch_type = fct_lump_min(addNA(pitch_type), 100))
-
+  mutate(pitch_type = factor(pitch_type))
 
 split_data <- rsample::initial_validation_split(ml_ohe, c(0.9, 0.05))
 
 training_data <- rsample::training(split_data) %>% 
   select(
     pitch_type,
+    starts_with("freq"),
     starts_with("lag1")
     ) %>% 
   na.omit()
@@ -58,6 +58,7 @@ training_data <- rsample::training(split_data) %>%
 testing_data <- rsample::testing(split_data) %>% 
   select(
     pitch_type,
+    starts_with("freq"),
     starts_with("lag1")
   ) %>% 
   na.omit()
@@ -95,14 +96,16 @@ score_train1 = eval_metrics_classification(predictions2, as.numeric(training_dat
 training_data <- rsample::training(split_data) %>% 
   select(
     is_fastball,
-    starts_with("lag1")
+    starts_with("lag1"),
+    starts_with("lag2")
   ) %>% 
   na.omit()
 
 testing_data <- rsample::testing(split_data) %>% 
   select(
     is_fastball,
-    starts_with("lag1")
+    starts_with("lag1"),
+    starts_with("lag2")
   ) %>% 
   na.omit()
 
@@ -146,17 +149,19 @@ score_train1 = eval_metrics_classification(predictions2, as.numeric(training_dat
 
 ### Run Random Forest on train set, use rpart; hyperparam setting: ntree=200, nodesize = 10
 library(randomForest)
-rforest_1 <- randomForest(is_fastball ~., data = training_data, ntree = 200, nodesize = 10)
+rforest_1 <- randomForest(pitch_type ~., data = training_data, ntree = 200, nodesize = 1, type = "classification")
 
 # get predictions and train set performance 
-pred_rforest_1_train <- predict(rforest_1, training_data)
+pred_rforest_1_train <- predict(rforest_1, training_data, type = "class")
 train_perf_rforest_1 <- eval_metrics_classification(
-  ifelse(pred_rforest_1_train > 0.5, 1, 0),
-  training_data$is_fastball
+  pred_rforest_1_train,
+  training_data$pitch_type
   )
 
 # get predictions and test set performance 
 pred_rforest_1_test <- predict(rforest_1, testing_data)
 test_perf_rforest_1 <- eval_metrics_classification(
-  ifelse(pred_rforest_1_test > 0.5, 1, 0), 
-  testing_data$is_fastball)
+  pred_rforest_1_test, 
+  testing_data$pitch_type
+  )
+c
