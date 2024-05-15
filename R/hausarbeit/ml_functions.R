@@ -7,3 +7,9 @@ eval_metrics_regression <- function(pred, true){
     RMSE = RMSE,
     Rsquare = R_square)
 }
+
+eval_metrics_classification <- function(pred, true){
+  cf = caret::confusionMatrix(factor(pred),factor(true))
+  #print
+  print(cf)
+}

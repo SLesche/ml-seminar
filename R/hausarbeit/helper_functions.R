@@ -203,6 +203,8 @@ prep_for_ml <- function(data){
     "inning",
     "pitch_count_total",
     "pitch_number",
+    "balls",
+    "strikes",
     "stand",
     "opponent_team",
     "on_3b",
@@ -230,8 +232,6 @@ prep_for_ml <- function(data){
     "delta_run_exp",
     "hit_location",
     "bb_type",
-    "balls",
-    "strikes",
     "pfx_x",
     "pfx_z",
     "hit_distance_sc",
@@ -367,7 +367,8 @@ prep_for_ml <- function(data){
       across(lag_variables, ~lag(., 4), .names = "lag4_{.col}"),
       across(lag_variables, ~lag(., 5), .names = "lag5_{.col}"),
     ) %>% 
-    ungroup()
+    ungroup() %>% 
+    select(-all_of(lag_variables[!lag_variables %in% c("is_fastball", "pitch_type")]))
     
     return(data_lagged_ml)
 }

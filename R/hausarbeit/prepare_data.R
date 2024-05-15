@@ -39,6 +39,7 @@ plot_pitch_velocity(clean_data %>% filter(game_year > 2018))
 
 # Recoding Data
 # Get info on previous pitch outcomes, previous at bat outcomes
+
 ml_data <- clean_data %>% filter(game_year > 2018) %>%  prep_for_ml()
 
 ml_ohe <- mltools::one_hot(data.table::as.data.table(ml_data)) %>% 
@@ -48,11 +49,21 @@ ml_ohe <- mltools::one_hot(data.table::as.data.table(ml_data)) %>%
 split_data <- rsample::initial_validation_split(ml_ohe, c(0.9, 0.05))
 
 training_data <- rsample::training(split_data) %>% 
-  select(-starts_with("lag2"), -starts_with("lag3"),-starts_with("lag4"),-starts_with("lag5")) %>% 
+  select(
+    pitch_type,
+    starts_with("lag1")
+    ) %>% 
+  na.omit()
+
+testing_data <- rsample::testing(split_data) %>% 
+  select(
+    pitch_type,
+    starts_with("lag1")
+  ) %>% 
   na.omit()
 
 x_train = model.matrix(pitch_type~., training_data)[,-1]
-x_test = model.matrix(pitch_type~., test_ohe)[,-1]
+x_test = model.matrix(pitch_type~., testing_data)[,-1]
 y_train = training_data %>%
   select(pitch_type) %>%
   unlist() %>%
@@ -71,42 +82,58 @@ cv_model = glmnet::cv.glmnet(x = as.matrix(x = x_train),
 best_lambda = cv_model$lambda.min
 
 # fit best model
-best_model = glmnet::glmnet(x_train, y_train, alpha = 1, lambda = best_lambda, family = "multinomial")
+best_model = glmnet::glmnet(x_train, y_train, alpha = 1, family = "multinomial")
 
 ### Evaluate model 2 ##
 # predict raw values for the train set and test set
-predictions2 = predict(best_model, s=best_lambda, newx=x_train, type = "response")
-predictions_test2 = predict(best_model, s = best_lambda, newx = x_test)
+predictions2 = predict(best_model, s=best_lambda, newx=x_train, type = "class")
 
 # # calculate and print r2 and rmse scores for train and test set
-score_train1 = eval_metrics(predictions2, training_data$pitch_type)
-print(c("Score Train Model 2: LASSO Regression", score_train1))
+score_train1 = eval_metrics_classification(predictions2, as.numeric(training_data$pitch_type))
 
-score_test1 = eval_metrics(predictions_test2, test_ohe$G3)
-print(c("Score Test Model 2: LASSO Regression", score_test1))
+
+training_data <- rsample::training(split_data) %>% 
+  select(
+    is_fastball,
+    starts_with("lag1")
+  ) %>% 
+  na.omit()
+
+testing_data <- rsample::testing(split_data) %>% 
+  select(
+    is_fastball,
+    starts_with("lag1")
+  ) %>% 
+  na.omit()
+
+x_train = model.matrix(is_fastball~., training_data)[,-1]
+x_test = model.matrix(is_fastball~., testing_data)[,-1]
+y_train = training_data %>%
+  select(is_fastball) %>%
+  unlist() %>%
+  as.numeric()
+
+set.seed(0)
+#find optimal lambda value that minimizes MSE on train set
+nFolds = 10
+foldid = sample(rep(seq(nFolds), length.out = nrow(training_data)))
+library(glmnet)
+cv_model = glmnet::cv.glmnet(x = as.matrix(x = x_train), 
+                             y = y_train, alpha = 1, 
+                             nfolds = nFolds,
+                             foldid = foldid,
+                             family = "binomial")
+best_lambda = cv_model$lambda.min
+
 # fit best model
-best_model = glmnet(
-  training_data %>% select(-!!sym(outcome_var)),
-  training_data %>% select(!!sym(outcome_var)),
-  alpha = 0, 
-  lambda = best_lambda,
-  family = "multinom"
-)
+best_model = glmnet::glmnet(x_train, y_train, alpha = 1, family = "binomial")
 
-predictions = predict(best_model, s=best_lambda, newx=training_data[, -outcome_var])
-predictions_test = predict(best_model, s = best_lambda, newx = testing_data[, -outcome_var])
+### Evaluate model 2 ##
+# predict raw values for the train set and test set
+predictions2 = predict(best_model, s=best_lambda, newx=x_train, type = "class")
 
 # # calculate and print r2 and rmse scores for train and test set
-score_train = eval_metrics(predictions, training_data[, outcome_var])
-print(c("Score Train: RIDGE Regression", score_train1))
-
-score_test = eval_metrics(predictions_test, testing_data[, outcome_var])
-print(c("Score Test: RIDGE Regression", score_test1))
-
-nrow(na.omit(training_data))
-
-validation_data <- rsample::validation(split_data)
-testing_data <- rsample::testing(split_data)
+score_train1 = eval_metrics_classification(predictions2, as.numeric(training_data$is_fastball))
 
 
 # Which ML Models to try out?
@@ -116,3 +143,20 @@ testing_data <- rsample::testing(split_data)
 # Logistic Regression for 2 Pitch (Fastball/Offspeed) (LASSO/RIDGE)
 # k-nearest Neighbor
 # Neural Net
+
+### Run Random Forest on train set, use rpart; hyperparam setting: ntree=200, nodesize = 10
+library(randomForest)
+rforest_1 <- randomForest(is_fastball ~., data = training_data, ntree = 200, nodesize = 10)
+
+# get predictions and train set performance 
+pred_rforest_1_train <- predict(rforest_1, training_data)
+train_perf_rforest_1 <- eval_metrics_classification(
+  ifelse(pred_rforest_1_train > 0.5, 1, 0),
+  training_data$is_fastball
+  )
+
+# get predictions and test set performance 
+pred_rforest_1_test <- predict(rforest_1, testing_data)
+test_perf_rforest_1 <- eval_metrics_classification(
+  ifelse(pred_rforest_1_test > 0.5, 1, 0), 
+  testing_data$is_fastball)
