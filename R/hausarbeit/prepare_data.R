@@ -96,6 +96,7 @@ score_train1 = eval_metrics_classification(predictions2, as.numeric(training_dat
 training_data <- rsample::training(split_data) %>% 
   select(
     is_fastball,
+    starts_with("freq"),
     starts_with("lag1"),
     starts_with("lag2")
   ) %>% 
@@ -104,6 +105,7 @@ training_data <- rsample::training(split_data) %>%
 testing_data <- rsample::testing(split_data) %>% 
   select(
     is_fastball,
+    starts_with("freq"),
     starts_with("lag1"),
     starts_with("lag2")
   ) %>% 
@@ -149,13 +151,13 @@ score_train1 = eval_metrics_classification(predictions2, as.numeric(training_dat
 
 ### Run Random Forest on train set, use rpart; hyperparam setting: ntree=200, nodesize = 10
 library(randomForest)
-rforest_1 <- randomForest(pitch_type ~., data = training_data, ntree = 200, nodesize = 1, type = "classification")
+rforest_1 <- randomForest(is_fastball ~., data = training_data, ntree = 200, nodesize = 10, type = "classification")
 
 # get predictions and train set performance 
 pred_rforest_1_train <- predict(rforest_1, training_data, type = "class")
 train_perf_rforest_1 <- eval_metrics_classification(
   pred_rforest_1_train,
-  training_data$pitch_type
+  training_data$is_fastball
   )
 
 # get predictions and test set performance 
