@@ -196,35 +196,85 @@ plot_pitch_velocity <- function(data){
 # Or my own xBA model, compare to the existing xBA
 
 prep_for_ml <- function(data){
+  # Make variable: distance from intended, which is mean of the position given some variables
+  relevant_variables = c(
+    "game_year",
+    "stand",
+    "home_team",
+    "on_3b",
+    "on_2b",
+    "on_1b",
+    "men_on_base",
+    "runners_in_scoring_position",
+    "outs_when_up",
+    "inning",
+    "inning_topbot",
+    "bat_score",
+    "fld_score",
+    "score_difference"
+  )
+  lag_variables = c(
+    "pitch_type", 
+    "release_speed", 
+    "events", 
+    "description", 
+    "zone",
+    "distance_from_intended",
+    "delta_run_exp",
+    "hit_location",
+    "bb_type",
+    "balls",
+    "strikes",
+    "pfx_x",
+    "pfx_z",
+    "hit_distance_sc",
+    "launch_speed",
+    "launch_angle",
+    "barrelled",
+    "effective_speed",
+    "release_spin_rate",
+    "estimated_ba_using_speedangle",
+    "estimated_woba_using_speedangle",
+    "dodged_a_hit", # Estimated ba > 0.5
+    "got_hit", # hit in last pa
+    "launch_speed_angle",
+    "release_extension",
+    "spin_axis",
+    "delta_home_win_exp",
+    "delta_home_run_exp",
+    "yanked"
+  )
+  
+  intended_target = data %>% 
+    group_by(game_year, stand, pitch_type, balls, strikes) %>% 
+    summarize(
+      intended_x = mean(pfx_x_in_pv, na.rm = TRUE),
+      intended_z = mean(pfx_z_in, na.rm = TRUE)
+    ) %>% ungroup()
   
   data_ml = data %>% 
+    left_join(., intended_target) %>% 
     arrange(game_pk, inning, at_bat_number, pitch_number) %>% 
     group_by(game_pk) %>% 
     mutate(
       pitch_count_total = row_number()
     ) %>% 
-    group_by(game_pk, inning) %>% 
-    mutate(
-      # Previous info on Pitch Type, Speed, Location, Outcome
-      # Maybe make the depth the model can see variable
-      # And also make it variable if grouped only within at bat or across
-      previous_pitch_type = lag(pitch_type),
-      previous_pitch_zone = lag(result_pitch_zone),
-      previous_pitch_code = lag(result_pitch_code),
-    ) %>% 
-    group_by(game_pk, inning, at_bat_number) %>% 
-    mutate(
-      true_balls = lag(pitch_count_balls),
-      true_strikes = lag(pitch_count_strikes)
-    ) %>% 
     ungroup() %>% 
+    select(game_pk, game_date, inning, at_bat_number, pitcher, batter, pitch_number, pitch_count_total,
+           balls, strikes,
+           pitch_name, description, delta_run_exp, everything()) %>% 
     mutate(
-      true_balls = ifelse(is.na(true_balls) & is.na(true_strikes), 0, true_balls),
-      true_strikes = ifelse(true_balls == 0 & is.na(true_strikes), 0, true_strikes)
+      men_on_base = rowSums(!is.na(select(., starts_with("on_")))),
+      runners_in_scoring_position = ifelse(
+        !is.na(on_2b) | !is.na(on_3b),
+        1,
+        0
+      ),
+      score_difference = fld_score - bat_score,
+      dodged_a_hit = ifelse(estimated_ba_using_speedangle > 0.5, 1, 0),
+      distance_from_intended = sqrt((pfx_x_in_pv - intended_x)^2 + (pfx_z_in - intended_z)^2)
     ) %>% 
-    filter(!is.na(result_pitch_zone), true_strikes != 3, true_balls != 4) %>% 
-    rowwise() %>% 
-    mutate(men_on_base = sum(man_on_first, man_on_second, man_on_third)) %>% 
-    ungroup() %>% 
-    mutate(count = factor(paste0(true_balls, ", ", true_strikes)))
+    mutate(
+      yanked = ifelse(distance_from_intended > 7, 1, 0)
+    )
 }
