@@ -352,6 +352,7 @@ prep_for_ml <- function(data){
         ~addNA(factor(.))
       )
     ) %>% 
+    mutate(pitch_type = factor(pitch_type)) %>% 
     mutate(
       across(
         c("game_year",
