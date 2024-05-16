@@ -2000,6 +2000,36 @@ validation_data &lt;- rsample::validation(split_data) %&gt;%
 <h3>Random Forest</h3>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucmZfcmVzdWx0XG5cbmBgYCJ9 -->
+<pre class="r"><code>rf_result
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiJG1vZGVsXG5cbkNhbGw6XG4gcmFuZG9tRm9yZXN0KGZvcm11bGEgPSBvdXRjb21lIH4gLiwgZGF0YSA9IHRyYWluaW5nX2RhdGEsIG50cmVlID0gMjAwLCAgICAgIGltcG9ydGFuY2UgPSBUUlVFLCBub2Rlc2l6ZSA9IGJlc3Rfbm9kZXNpemUpIFxuICAgICAgICAgICAgICAgVHlwZSBvZiByYW5kb20gZm9yZXN0OiBjbGFzc2lmaWNhdGlvblxuICAgICAgICAgICAgICAgICAgICAgTnVtYmVyIG9mIHRyZWVzOiAyMDBcbk5vLiBvZiB2YXJpYWJsZXMgdHJpZWQgYXQgZWFjaCBzcGxpdDogMTFcblxuICAgICAgICBPT0IgZXN0aW1hdGUgb2YgIGVycm9yIHJhdGU6IDM0LjQzJVxuQ29uZnVzaW9uIG1hdHJpeDpcbiAgICAwICAgIDEgY2xhc3MuZXJyb3JcbjAgMjczICA5MDYgICAwLjc2ODQ0NzhcbjEgMjgxIDE5ODggICAwLjEyMzg0MzFcblxuJGJlc3RfcGFyYW1cblsxXSAxXG5cbiR0cmFpbl9hY2NcbkFjY3VyYWN5IFxuICAgICAgIDEgXG5cbiR0ZXN0X2FjY1xuIEFjY3VyYWN5IFxuMC41NzgzNzg0IFxuIn0= -->
+<pre><code>$model
+
+Call:
+ randomForest(formula = outcome ~ ., data = training_data, ntree = 200,      importance = TRUE, nodesize = best_nodesize) 
+               Type of random forest: classification
+                     Number of trees: 200
+No. of variables tried at each split: 11
+
+        OOB estimate of  error rate: 34.43%
+Confusion matrix:
+    0    1 class.error
+0 273  906   0.7684478
+1 281 1988   0.1238431
+
+$best_param
+[1] 1
+
+$train_acc
+Accuracy 
+       1 
+
+$test_acc
+ Accuracy 
+0.5783784 </code></pre>
+<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->

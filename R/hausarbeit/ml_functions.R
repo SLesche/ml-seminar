@@ -156,8 +156,8 @@ run_random_forest <- function(training_data, testing_data, validation_data){
   result = list()
   result$model = rforest
   result$best_param = best_nodesize
-  result$train_acc = score_train$overall[1]
-  result$test_acc = score_test$overall[1]
+  result$train_acc = train_perf_rforest$overall[1]
+  result$test_acc = test_perf_rforest$overall[1]
   return(result)
   
 }
