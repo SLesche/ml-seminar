@@ -57,7 +57,7 @@ kimbrel_data <- data.table::fread("./data/kimbrel_data.csv")
 
 ## How does the data cleaning work?
 ```{r cleaning}
-clean_data <- scherzer_data %>% clean_pbp_data()
+clean_data <- kimbrel_data %>% clean_pbp_data()
 ```
 
 # Pitches
@@ -123,6 +123,26 @@ validation_data <- rsample::validation(split_data) %>%
 ```
 
 ## Models
+```{r take-the-best}
+take_the_best <-  ml_data %>% 
+    group_by(game_year, stand, balls, strikes) %>%
+    count(pitch_type) %>% 
+    mutate(
+      freq = n / sum(n)
+    ) %>% 
+    filter(pitch_type != "") %>% 
+  slice_max(freq) %>% 
+  mutate(
+    mult = n * freq
+  ) %>% 
+  ungroup() %>% 
+  summarize(
+    accuracy = sum(mult) / sum(n)
+  )
+
+# Here accuracy when taking the best just based on balls/strikes/
+```
+
 ### Lasso
 ```{r lasso}
 lasso_result <- run_lasso_regression(training_data, testing_data, validation_data)

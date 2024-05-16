@@ -217,10 +217,12 @@ run_knn <- function(training_data, testing_data, validation_data){
                               test = test_scale, 
                               cl = training_data$outcome, 
                               k = best_k) 
+  
+  score_test = eval_metrics_classification(classifier_knn, testing_data$outcome)
+  
   result = list()
   result$model = classifier_knn
   result$best_param = best_k
-  result$train_acc = score_train$overall[1]
   result$test_acc = score_test$overall[1]
   return(result)
 }
