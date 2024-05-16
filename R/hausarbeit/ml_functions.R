@@ -53,7 +53,11 @@ run_ridge_regression <- function(training_data, testing_data, validation_data){
   # # calculate and print r2 and rmse scores for train and test set
   score_test = eval_metrics_classification(predictions_test, as.numeric(testing_data$outcome))
   
-  return(c(score_train$overall[1], score_test$overall[1]))
+  result = list()
+  result$model = best_model
+  result$train_acc = score_train$overall[1]
+  result$test_acc = score_test$overall[1]
+  return(result)
 }
 
 run_lasso_regression <- function(training_data, testing_data, validation_data){
@@ -93,7 +97,11 @@ run_lasso_regression <- function(training_data, testing_data, validation_data){
   # # calculate and print r2 and rmse scores for train and test set
   score_test = eval_metrics_classification(predictions_test, as.numeric(testing_data$outcome))
   
-  return(c(score_train$overall[1], score_test$overall[1]))
+  result = list()
+  result$model = best_model
+  result$train_acc = score_train$overall[1]
+  result$test_acc = score_test$overall[1]
+  return(result)
   
 }
 
@@ -145,8 +153,27 @@ run_random_forest <- function(training_data, testing_data, validation_data){
     testing_data$outcome
   )
   
-  return(c(train_perf_rforest$overall[1], test_perf_rforest$overall[1]))
+  result = list()
+  result$model = rforest
+  result$best_param = best_nodesize
+  result$train_acc = score_train$overall[1]
+  result$test_acc = score_test$overall[1]
+  return(result)
   
+}
+
+get_predictor_importance_rf <- function(model, training_data){
+  imp = hstats::perm_importance(model, training_data %>% select(-outcome), training_data$outcome, loss = 'squared_error', normalize = T)
+  
+  # prepare model for viz & calc shap
+  unified_model = treeshap::randomForest.unify(model, data.matrix(select(training_data, -outcome)))
+  treeshap = treeshap::treeshap(unified_model, data.matrix(select(training_data, -outcome))) # may take some while
+  result = list()
+  
+  result$importance = imp
+  result$shap = treeshap
+  
+  return(result)
 }
 
 run_knn <- function(training_data, testing_data, validation_data){
@@ -173,7 +200,7 @@ run_knn <- function(training_data, testing_data, validation_data){
     janitor::remove_empty() %>% 
     as.data.frame()
   
-  try_k = seq(5, 100, 10)
+  try_k = seq(5, 200, 10)
   knn_accuracy = numeric(length(try_k))
   # Fitting KNN Model to training dataset 
   for (i in seq_along(try_k)){
@@ -190,13 +217,46 @@ run_knn <- function(training_data, testing_data, validation_data){
                               test = test_scale, 
                               cl = training_data$outcome, 
                               k = best_k) 
-  return(c(eval_metrics_classification(classifier_knn, validation_data$outcome)$overall[1]))
+  result = list()
+  result$model = classifier_knn
+  result$best_param = best_k
+  result$train_acc = score_train$overall[1]
+  result$test_acc = score_test$overall[1]
+  return(result)
 }
 
 run_svm <- function(training_data, testing_data, validation_data){
-  try_cost = seq(0.01, 1, 0.1)
+  try_degree = seq(1, 4, 1)
+  svm_accuracy = numeric(length(try_degree))
+  
+  for (i in seq_along(try_degree)){
+    # Support Vector Machines ----
+    svm_model <- svm(outcome ~ .,data = cbind(train_scale, outcome = training_data$outcome), 
+                     kernel = "polynomial",
+                     degree = try_degree[i])
+    
+    pred_svm_train <- predict(svm_model, train_scale, type = "class")
+    train_perf_svm <- eval_metrics_classification(
+      pred_svm_train,
+      training_data$outcome
+    )
+    
+    # get predictions and validation set performance 
+    pred_svm_val <- predict(svm_model, val_scale, type = "class")
+    val_perf_svm <- eval_metrics_classification(
+      pred_svm_val, 
+      validation_data$outcome
+    )
+    
+    svm_accuracy[i] = val_perf_svm$overall[1]
+  }
+  
+  best_degree = try_degree[svm_accuracy == max(svm_accuracy)]
+  
   # Support Vector Machines ----
-  svm_model <- svm(outcome ~ .,data = cbind(train_scale, outcome = training_data$outcome), cost = 0.1)
+  svm_model <- svm(outcome ~ .,data = cbind(train_scale, outcome = training_data$outcome), 
+                   kernel = "polynomial",
+                   degree = best_degree)
   
   pred_svm_train <- predict(svm_model, train_scale, type = "class")
   train_perf_svm <- eval_metrics_classification(
@@ -205,10 +265,17 @@ run_svm <- function(training_data, testing_data, validation_data){
   )
   
   # get predictions and validation set performance 
-  pred_svm_val <- predict(svm_model, val_scale, type = "class")
+  pred_svm_test <- predict(svm_model, test_scale, type = "class")
   val_perf_svm <- eval_metrics_classification(
-    pred_svm_val, 
-    validation_data$outcome
+    pred_svm_test, 
+    testing_data$outcome
   )
+  
+  result = list()
+  result$model = svm_model
+  result$best_param = best_degree
+  result$train_acc = score_train$overall[1]
+  result$test_acc = score_test$overall[1]
+  return(result)
 }
   
