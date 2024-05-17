@@ -14,12 +14,33 @@ eval_metrics_classification <- function(pred, true){
   #print(cf)
 }
 
+is_binary_column <- function(col){
+  all(col %in% c(0, 1))
+}
 
 run_ridge_regression <- function(training_data, testing_data, validation_data){
   training_data = rbind(training_data, validation_data)
   
-  x_train = model.matrix(outcome~., training_data)[,-1]
-  x_test = model.matrix(outcome~., testing_data)[,-1]
+  cols_to_scale = training_data %>% 
+    select_if(is.numeric) %>% 
+    select_if(~!is_binary_column(.))
+  
+  train_scale = training_data %>% 
+    select(-ends_with("hit_location_other"), -ends_with("Other")) %>% 
+    mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
+    janitor::remove_constant() %>% 
+    janitor::remove_empty() %>% 
+    as.data.frame()
+  
+  test_scale = testing_data %>% 
+    select(-ends_with("hit_location_other"), -ends_with("Other")) %>% 
+    mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
+    janitor::remove_constant() %>% 
+    janitor::remove_empty() %>% 
+    as.data.frame()
+  
+  x_train = model.matrix(outcome~., train_scale)[,-1]
+  x_test = model.matrix(outcome~., test_scale)[,-1]
   y_train = training_data %>%
     select(outcome) %>%
     unlist() %>%
@@ -62,13 +83,31 @@ run_ridge_regression <- function(training_data, testing_data, validation_data){
 
 run_lasso_regression <- function(training_data, testing_data, validation_data){
   training_data = rbind(training_data, validation_data)
-  x_train = model.matrix(outcome~., training_data)[,-1]
-  x_test = model.matrix(outcome~., testing_data)[,-1]
+  
+  cols_to_scale = training_data %>% 
+    select_if(is.numeric) %>% 
+    select_if(~!is_binary_column(.))
+  
+  train_scale = training_data %>% 
+    select(-ends_with("hit_location_other"), -ends_with("Other")) %>% 
+    mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
+    janitor::remove_constant() %>% 
+    janitor::remove_empty() %>% 
+    as.data.frame()
+  
+  test_scale = testing_data %>% 
+    select(-ends_with("hit_location_other"), -ends_with("Other")) %>% 
+    mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
+    janitor::remove_constant() %>% 
+    janitor::remove_empty() %>% 
+    as.data.frame()
+  
+  x_train = model.matrix(outcome~., train_scale)[,-1]
+  x_test = model.matrix(outcome~., test_scale)[,-1]
   y_train = training_data %>%
     select(outcome) %>%
     unlist() %>%
     as.numeric()
-  
   # Lasso Regression ----
   set.seed(0)
   #find optimal lambda value that minimizes MSE on train set
@@ -178,16 +217,20 @@ get_predictor_importance_rf <- function(model, training_data){
 
 run_knn <- function(training_data, testing_data, validation_data){
   # KNN ----
+  cols_to_scale = training_data %>% 
+    select_if(is.numeric) %>% 
+    select_if(~!is_binary_column(.))
+  
   train_scale = training_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
-    mutate(across(where(is.numeric), scale)) %>% 
+    mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
   val_scale = validation_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
-    mutate(across(where(is.numeric), scale)) %>% 
+    mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
@@ -195,7 +238,7 @@ run_knn <- function(training_data, testing_data, validation_data){
   
   test_scale = testing_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
-    mutate(across(where(is.numeric), scale)) %>% 
+    mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
@@ -228,16 +271,20 @@ run_knn <- function(training_data, testing_data, validation_data){
 }
 
 run_svm <- function(training_data, testing_data, validation_data){
+  cols_to_scale = training_data %>% 
+    select_if(is.numeric) %>% 
+    select_if(~!is_binary_column(.))
+  
   train_scale = training_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
-    mutate(across(where(is.numeric), scale)) %>% 
+    mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
   val_scale = validation_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
-    mutate(across(where(is.numeric), scale)) %>% 
+    mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
@@ -245,7 +292,7 @@ run_svm <- function(training_data, testing_data, validation_data){
   
   test_scale = testing_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
-    mutate(across(where(is.numeric), scale)) %>% 
+    mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
@@ -305,16 +352,20 @@ run_svm <- function(training_data, testing_data, validation_data){
   
 
 run_svm_linear <- function(training_data, testing_data, validation_data){
+  cols_to_scale = training_data %>% 
+    select_if(is.numeric) %>% 
+    select_if(~!is_binary_column(.))
+  
   train_scale = training_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
-    mutate(across(where(is.numeric), scale)) %>% 
+    mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
   val_scale = validation_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
-    mutate(across(where(is.numeric), scale)) %>% 
+    mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
@@ -322,7 +373,7 @@ run_svm_linear <- function(training_data, testing_data, validation_data){
   
   test_scale = testing_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
-    mutate(across(where(is.numeric), scale)) %>% 
+    mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
