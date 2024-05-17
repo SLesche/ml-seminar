@@ -228,6 +228,28 @@ run_knn <- function(training_data, testing_data, validation_data){
 }
 
 run_svm <- function(training_data, testing_data, validation_data){
+  train_scale = training_data %>% 
+    select(-outcome, -ends_with("hit_location_other")) %>% 
+    mutate(across(where(is.numeric), scale)) %>% 
+    janitor::remove_constant() %>% 
+    janitor::remove_empty() %>% 
+    as.data.frame()
+  
+  val_scale = validation_data %>% 
+    select(-outcome, -ends_with("hit_location_other")) %>% 
+    mutate(across(where(is.numeric), scale)) %>% 
+    janitor::remove_constant() %>% 
+    janitor::remove_empty() %>% 
+    as.data.frame()
+  
+  
+  test_scale = testing_data %>% 
+    select(-outcome, -ends_with("hit_location_other")) %>% 
+    mutate(across(where(is.numeric), scale)) %>% 
+    janitor::remove_constant() %>% 
+    janitor::remove_empty() %>% 
+    as.data.frame()
+  
   try_degree = seq(1, 4, 1)
   svm_accuracy = numeric(length(try_degree))
   
@@ -281,3 +303,79 @@ run_svm <- function(training_data, testing_data, validation_data){
   return(result)
 }
   
+
+run_svm_linear <- function(training_data, testing_data, validation_data){
+  train_scale = training_data %>% 
+    select(-outcome, -ends_with("hit_location_other")) %>% 
+    mutate(across(where(is.numeric), scale)) %>% 
+    janitor::remove_constant() %>% 
+    janitor::remove_empty() %>% 
+    as.data.frame()
+  
+  val_scale = validation_data %>% 
+    select(-outcome, -ends_with("hit_location_other")) %>% 
+    mutate(across(where(is.numeric), scale)) %>% 
+    janitor::remove_constant() %>% 
+    janitor::remove_empty() %>% 
+    as.data.frame()
+  
+  
+  test_scale = testing_data %>% 
+    select(-outcome, -ends_with("hit_location_other")) %>% 
+    mutate(across(where(is.numeric), scale)) %>% 
+    janitor::remove_constant() %>% 
+    janitor::remove_empty() %>% 
+    as.data.frame()
+  
+  try_cost = 1 / c(2, 5, 10, 100, 1000, 10000)
+  svm_accuracy = numeric(length(try_cost))
+  
+  for (i in seq_along(try_cost)){
+    # Support Vector Machines ----
+    svm_model <- svm(outcome ~ .,data = cbind(train_scale, outcome = training_data$outcome), 
+                     kernel = "linear",
+                     cost = try_cost[i])
+    
+    pred_svm_train <- predict(svm_model, train_scale, type = "class")
+    train_perf_svm <- eval_metrics_classification(
+      pred_svm_train,
+      training_data$outcome
+    )
+    
+    # get predictions and validation set performance 
+    pred_svm_val <- predict(svm_model, val_scale, type = "class")
+    val_perf_svm <- eval_metrics_classification(
+      pred_svm_val, 
+      validation_data$outcome
+    )
+    
+    svm_accuracy[i] = val_perf_svm$overall[1]
+  }
+  
+  best_cost = try_cost[svm_accuracy == max(svm_accuracy)]
+  
+  # Support Vector Machines ----
+  svm_model <- svm(outcome ~ .,data = cbind(train_scale, outcome = training_data$outcome), 
+                   kernel = "linear",
+                   cost = best_cost)
+  
+  pred_svm_train <- predict(svm_model, train_scale, type = "class")
+  train_perf_svm <- eval_metrics_classification(
+    pred_svm_train,
+    training_data$outcome
+  )
+  
+  # get predictions and validation set performance 
+  pred_svm_test <- predict(svm_model, test_scale, type = "class")
+  val_perf_svm <- eval_metrics_classification(
+    pred_svm_test, 
+    testing_data$outcome
+  )
+  
+  result = list()
+  result$model = svm_model
+  result$best_param = best_degree
+  result$train_acc = score_train$overall[1]
+  result$test_acc = score_test$overall[1]
+  return(result)
+}

@@ -26,10 +26,30 @@ The scandal, often referred to as the "Bang-Bang" scandal, after the sounds alle
 
 In the wake of the scandal, teams across the league have sought ways to counter the Astros' strategies and regain a competitive edge. This brings us to the intersection of baseball and cutting-edge technology: the use of machine learning to predict the next pitch. By analyzing vast amounts of data, machine learning models can provide insights into pitching patterns and tendencies, potentially leveling the playing field.In this blog post, we'll explore how machine learning is being used to predict the next pitch, giving teams a new tool in their arsenal to outsmart even the most cunning opponents. From the basic principles of machine learning to its application in baseball, we'll dive deep into the technology that could hold the key to beating the Astros and others like them.
 
-# Data
-Talk about how it is being read in
+## Baseball
+Before we dive deep into predicting the future of baseball, I want to provide a quick introduction to the sport. Baseball is a bat-and-ball sport played between two teams of nine players each, taking turns batting and fielding. The game is played on a diamond-shaped field, which includes four bases arranged in a square around the pitcher's mound.
 
-and which pitcher we are using
+### The Pitcher
+In baseball, the pitcher is one of the most crucial players on the field. Positioned on the pitcher's mound, a slight hill in the middle of the field, the pitcher throws the ball towards the catcher, who is behind home plate. The pitcher's primary goal is to get the batter out by using a variety of pitches to make it difficult for the batter to hit the ball.
+
+Pitchers use these different types of pitches to deceive batters and gain an advantage. Here are some common pitch types:
+
+- **Fastball**: A high-speed pitch, typically thrown with little to no movement. It's the most basic pitch and can be further categorized into four-seam, two-seam, and cut fastballs.
+- **Curveball**: A pitch with significant downward movement, often causing the ball to "break" sharply as it approaches the plate.
+- **Slider**: A pitch that combines speed with a lateral, diagonal break. It is faster than a curveball but with less dramatic movement.
+- **Changeup**: A slower pitch meant to look like a fastball, intended to disrupt the batter's timing.
+- **Splitter**: A pitch that appears like a fastball but drops sharply as it nears the plate.
+
+### The Batter
+The offensive player, the batter, will try to hit those different types of pitches. After a hit, the game transforms to something similar to "Brennball" where the ball travels and you can run between safe spots ("bases") before the ball reaches you again. The exact scoring format is not that important. However, knowing which pitch type is coming would severly benefit a batters ability to perform.
+
+## Data
+In the world of modern baseball analytics, data is king. To predict the next pitch accurately, we need access to detailed and comprehensive datasets that capture every nuance of the game. This is where the `baseballr` package comes in handy. The `baseballr` package allows us to access and manipulate baseball data from various sources, including the MLB's Statcast system.
+
+The `baseballr` package streamlines the process of retrieving game data, making it accessible for analysis. With some work (shown in the `get_pbp_data()` function of `helper_functions.R`), we can pull detailed pitch-by-pitch data, including information on pitch type, velocity, spin rate, and much more. 
+
+As an example, I loaded the pitch statistics of 6 different pitchers. I then visualized what types of pitches they throw, when they throw them, what percentage of the time they throw each pitch and how fast each pitch is thrown.
+
 ```{r data}
 # Getting data ----
 id_map <- data.table::fread("./data/player_id_map.csv") %>%
@@ -60,29 +80,79 @@ verlander_data <- data.table::fread("./data/verlander_data.csv")
 kimbrel_data <- data.table::fread("./data/kimbrel_data.csv")
 ```
 
-## How does the data cleaning work?
 ```{r cleaning}
 clean_data <- scherzer_data %>% clean_pbp_data()
 ```
 
-# Pitches
-What are pitches, what can we see from pitch usage chart
+## Visualizing pitches
+Here we see the pitch usage by Max Scherzer. In the end, this is the data I will demonstrate all the machine learning models on. "Mad" Max Scherzer is an ideal subject for our analysis for several reasons. Firstly, Scherzer is widely regarded as one of the best pitchers in baseball. His career, marked by multiple Cy Young Awards and All-Star appearances, speaks volumes about his skill and consistency.
+
+More importantly, Scherzer has maintained a remarkably stable pitch mix since 2017. This consistency makes him an excellent candidate for predictive modeling, as it allows us to identify patterns and trends more reliably. A pitcher with a stable repertoire provides a clearer signal for our machine learning algorithms, improving the accuracy of our predictions.
+
+By focusing on Scherzer, we leverage the wealth of data available from his extensive and consistent career to build a robust model. This not only enhances our understanding of his pitching strategies but also serves as a blueprint for applying similar techniques to other pitchers and teams.
+
 ```{r pitch-usage}
 plot_pitch_usage(clean_data)
 ```
-
- Other pitch stats
+In the following plots, you can see how different pitches move and why they might be classified into different categories. You can also see differences in velocity that give rise to the description "fastball". Both the "Cutter" and the "4-Seam Fastball" would fall into this category, being thrown over 140km/h. 
 ```{r pitch-stats}
 plot_pitch_movement(clean_data %>% filter(game_year > 2018))
+
+plot_pitch_velocity(clean_data %>% filter(game_year > 2018))
 
 plot_pitch_by_count(clean_data %>% filter(game_year > 2018))
 
 plot_pitch_by_batter(clean_data %>% filter(game_year > 2018))
-
-plot_pitch_velocity(clean_data %>% filter(game_year > 2018))
 ```
 # Machine Learning
-Describe concept and feature engineering done here
+In the following sections, we'll delve into the machine learning methodologies used to predict pitch types and how this data-driven approach can potentially level the playing field against even the most formidable opponents, like the Astros.
+
+Firstly, we have to prepare the data to fit our machine learning functions and engineer some additional features that might help us predict future pitches. We will focus on all the pitches Max has thrown after 2017. The `prep_for_ml` function performs the following feature engineering tasks on the baseball data to prepare it for machine learning:
+
+### 1. **Calculating Intended Target Position**
+   - Computes the mean position (`intended_x`, `intended_z`) of the pitches for each combination of `game_year`, `stand`, `pitch_type`, `balls`, and `strikes`.
+
+### 2. **Pitch Mix Calculation**
+   - Calculates the frequency of each pitch type for each combination of `game_year`, `stand`, `balls`, and `strikes`.
+   - The frequencies are then pivoted to wide format with each pitch type frequency becoming a separate column (`freq_*`).
+
+### 3. **Data Cleaning and Joining**
+   - Replaces empty string values with `NA`.
+   - Joins the calculated intended target positions and pitch mix frequencies back to the original dataset.
+
+### 4. **Adding New Variables**
+   - **Pitch Count**: Adds a running count of pitches (`pitch_count_total`) for each game.
+   - **Men on Base**: Creates a `men_on_base` variable by summing indicators for base runners.
+   - **Runners in Scoring Position**: Creates a binary variable `runners_in_scoring_position` to indicate if there are runners on 2nd or 3rd base.
+   - **Score Difference**: Computes the score difference (`fld_score` - `bat_score`).
+   - **Dodged a Hit**: Indicates if the estimated batting average (`estimated_ba_using_speedangle`) is greater than 0.5.
+   - **Distance from Intended**: Calculates the Euclidean distance from the intended target position.
+   - **Opponent Team**: Determines the opponent team based on the inning (`inning_topbot`).
+   - **Sweet Spot**: Indicates if the launch angle is between 8 and 32 degrees.
+   - **Hard Hit**: Indicates if the launch speed is greater than 95 mph.
+   - **Is Hit**: Indicates if the event was a hit (e.g., single, double).
+   - **Is Base**: Indicates if the event resulted in the batter reaching base.
+   - **Is Fastball**: Indicates if the pitch type is a fastball (e.g., `FC`, `FF`, `SI`).
+
+### 5. **Additional Flags**
+   - **Yanked**: Indicates if the distance from the intended target is greater than 7.
+   - **Barrel**: Indicates if both `sweet_spot` and `hard_hit` are true.
+
+### 6. **Rolling Averages for Fastballs**
+   - Computes rolling averages of the `is_fastball` variable over windows of 5, 10, 20 pitches, and the entire game (`rolling_fastball_avg_*`).
+
+### 7. **Converting Categorical Variables**
+   - Converts specific variables to factors and handles `NA` values by treating them as a separate category.
+   - Uses `fct_lump_min` to lump together infrequent factor levels.
+
+### 8. **Lagging Variables**
+   - Creates lagged versions of certain variables (`lag1_`, `lag2_`, etc.) for the past 5 pitches within each game and inning.
+
+### 9. **Final Selection**
+   - Selects relevant and lagged variables for the final dataset.
+
+The final dataset returned by `prep_for_ml` is thus enriched with engineered features, cleaned, and structured for machine learning applications. 
+
 ```{r ml-prep}
 # Recoding Data ----
 ml_data <- clean_data %>% filter(game_year > 2017) %>%  prep_for_ml()
@@ -169,6 +239,10 @@ knn_result <- run_knn(training_data, testing_data, validation_data)
 ### Support Vector Machines
 ```{r svm}
 svm_result <- run_svm(training_data, testing_data, validation_data)
+```
+
+```{r svm-linear}
+svm_linear_result <- run_svm_linear(training_data, testing_data, validation_data)
 ```
 
 ## The winner is...
