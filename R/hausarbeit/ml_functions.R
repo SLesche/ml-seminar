@@ -91,14 +91,12 @@ run_lasso_regression <- function(training_data, testing_data, validation_data){
   train_scale = training_data %>% 
     select(-ends_with("hit_location_other"), -ends_with("Other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
-    janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
   test_scale = testing_data %>% 
     select(-ends_with("hit_location_other"), -ends_with("Other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
-    janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
@@ -167,7 +165,7 @@ run_random_forest <- function(training_data, testing_data, validation_data){
     validation_accuracy[i] = val_perf_rforest$overall[i]
   }
   
-  best_nodesize = try_nodesize[validation_accuracy == max(validation_accuracy)]
+  best_nodesize = try_nodesize[validation_accuracy == max(validation_accuracy)][1]
   
   # Random Forest ----
   rforest = randomForest(outcome ~.,
@@ -224,14 +222,12 @@ run_knn <- function(training_data, testing_data, validation_data){
   train_scale = training_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
-    janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
   val_scale = validation_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
-    janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
@@ -239,7 +235,6 @@ run_knn <- function(training_data, testing_data, validation_data){
   test_scale = testing_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
-    janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
@@ -254,7 +249,7 @@ run_knn <- function(training_data, testing_data, validation_data){
     knn_accuracy[i] = eval_metrics_classification(classifier_knn, validation_data$outcome)$overall[1]
   }
   
-  best_k = try_k[knn_accuracy == max(knn_accuracy)]
+  best_k = try_k[knn_accuracy == max(knn_accuracy)][1]
   
   classifier_knn = class::knn(train = train_scale, 
                               test = test_scale, 
@@ -278,14 +273,12 @@ run_svm <- function(training_data, testing_data, validation_data){
   train_scale = training_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
-    janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
   val_scale = validation_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
-    janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
@@ -293,7 +286,6 @@ run_svm <- function(training_data, testing_data, validation_data){
   test_scale = testing_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
-    janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
@@ -322,7 +314,7 @@ run_svm <- function(training_data, testing_data, validation_data){
     svm_accuracy[i] = val_perf_svm$overall[1]
   }
   
-  best_degree = try_degree[svm_accuracy == max(svm_accuracy)]
+  best_degree = try_degree[svm_accuracy == max(svm_accuracy)][1]
   
   # Support Vector Machines ----
   svm_model <- svm(outcome ~ .,data = cbind(train_scale, outcome = training_data$outcome), 
@@ -359,14 +351,12 @@ run_svm_linear <- function(training_data, testing_data, validation_data){
   train_scale = training_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
-    janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
   val_scale = validation_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
-    janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
@@ -374,7 +364,6 @@ run_svm_linear <- function(training_data, testing_data, validation_data){
   test_scale = testing_data %>% 
     select(-outcome, -ends_with("hit_location_other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
-    janitor::remove_constant() %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
@@ -403,7 +392,7 @@ run_svm_linear <- function(training_data, testing_data, validation_data){
     svm_accuracy[i] = val_perf_svm$overall[1]
   }
   
-  best_cost = try_cost[svm_accuracy == max(svm_accuracy)]
+  best_cost = try_cost[svm_accuracy == max(svm_accuracy)][1]
   
   # Support Vector Machines ----
   svm_model <- svm(outcome ~ .,data = cbind(train_scale, outcome = training_data$outcome), 
