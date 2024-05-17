@@ -329,7 +329,7 @@ run_svm <- function(training_data, testing_data, validation_data){
   
   # get predictions and validation set performance 
   pred_svm_test <- predict(svm_model, test_scale, type = "class")
-  val_perf_svm <- eval_metrics_classification(
+  test_perf_svm <- eval_metrics_classification(
     pred_svm_test, 
     testing_data$outcome
   )
@@ -337,8 +337,8 @@ run_svm <- function(training_data, testing_data, validation_data){
   result = list()
   result$model = svm_model
   result$best_param = best_degree
-  result$train_acc = score_train$overall[1]
-  result$test_acc = score_test$overall[1]
+  result$train_acc = train_perf_svm$overall[1]
+  result$test_acc = test_perf_svm$overall[1]
   return(result)
 }
   
@@ -367,8 +367,7 @@ run_svm_linear <- function(training_data, testing_data, validation_data){
     janitor::remove_empty() %>% 
     as.data.frame()
   
-  # try_cost = 1 / c(2, 5, 10, 100, 1000, 10000)
-  try_cost = 1 / c(100, 1000, 10000)
+  try_cost = 1 / c(100, 500, 1000, 2000, 5000, 10000)
   svm_accuracy = numeric(length(try_cost))
   
   for (i in seq_along(try_cost)){
@@ -408,15 +407,15 @@ run_svm_linear <- function(training_data, testing_data, validation_data){
   
   # get predictions and validation set performance 
   pred_svm_test <- predict(svm_model, test_scale, type = "class")
-  val_perf_svm <- eval_metrics_classification(
+  test_perf_svm <- eval_metrics_classification(
     pred_svm_test, 
     testing_data$outcome
   )
   
   result = list()
   result$model = svm_model
-  result$best_param = best_degree
-  result$train_acc = score_train$overall[1]
-  result$test_acc = score_test$overall[1]
+  result$best_param = best_cost
+  result$train_acc = train_perf_svm$overall[1]
+  result$test_acc = test_perf_svm$overall[1]
   return(result)
 }
