@@ -24,10 +24,12 @@ get_pbp_data <- function(player_name, id_map){
   
   game_logs = list() 
   for (i in seq_along(active_years)){
-    game_logs[[i]] = statcast_search_pitchers(
-      start_date = season_info$begin[i],
-      end_date = season_info$end[i],
-      pitcherid = mlb_id
+    game_logs[[i]] = try(
+      statcast_search_pitchers(
+        start_date = season_info$begin[i],
+        end_date = season_info$end[i],
+        pitcherid = mlb_id
+      )
     )
   }
   
@@ -192,15 +194,14 @@ plot_pitch_velocity <- function(data){
     theme_minimal()
 }
 
-# Make a "Will it dong" Model
-# Or my own xBA model, compare to the existing xBA
-
 prep_for_ml <- function(data){
   # Make variable: distance from intended, which is mean of the position given some variables
   # Get average pitch mix as additional variable
   available_pitches = unique(data$pitch_type)
   relevant_variables = c(
     paste0("freq_", available_pitches),
+    paste0("fastball_freq", c(0,1)),
+    paste0("rolling_fastball_avg_", c(5, 10, 20, 999)),
     "game_year",
     "inning",
     "pitch_count_total",
@@ -281,7 +282,7 @@ prep_for_ml <- function(data){
     )
   
   pitch_mix[is.na(pitch_mix)] = 0
-
+  
   data_ml = data %>% 
     left_join(., intended_target) %>% 
     left_join(., pitch_mix) %>% 
@@ -334,7 +335,31 @@ prep_for_ml <- function(data){
     mutate(
       yanked = ifelse(distance_from_intended > 7, 1, 0),
       barrel = ifelse(sweet_spot + hard_hit == 2, 1, 0)
+    ) 
+  
+  fastball_mix = data_ml %>% 
+    group_by(game_year, stand, balls, strikes) %>%
+    count(is_fastball) %>% 
+    mutate(
+      freq = n / sum(n)
     ) %>% 
+    pivot_wider(
+      id_cols = c("game_year", "stand", "balls", "strikes"),
+      names_from = is_fastball,
+      values_from = freq,
+      names_prefix = "fastball_freq"
+    )
+  
+  data_ml = data_ml %>% 
+    group_by(game_pk) %>% 
+    mutate(
+      rolling_fastball_avg_5 = zoo::rollapply(is_fastball, 5, mean, align = 'right', fill = NA, partial = TRUE),
+      rolling_fastball_avg_10 = zoo::rollapply(is_fastball, 10, mean, align = 'right', fill = NA, partial = TRUE),
+      rolling_fastball_avg_20 = zoo::rollapply(is_fastball, 20, mean, align = 'right', fill = NA, partial = TRUE),
+      rolling_fastball_avg_999 = zoo::rollapply(is_fastball, 999, mean, align = 'right', fill = NA, partial = TRUE),
+    ) %>% 
+    ungroup() %>% 
+    left_join(., fastball_mix) %>% 
     mutate(
       across(
         c("game_year",
@@ -391,4 +416,20 @@ prep_for_ml <- function(data){
     select(-all_of(lag_variables[!lag_variables %in% c("is_fastball", "pitch_type")]))
     
     return(data_lagged_ml)
+}
+
+select_vars_for_ml <- function(ml_ohe, lag_amount){
+  lag_pattern = paste0("^lag[", paste(seq(1, lag_amount, 1), collapse = ""), "]")
+  
+  data = ml_ohe %>% 
+    select(
+      outcome,
+      starts_with("freq"),
+      starts_with("rolling"),
+      starts_with("fastball"),
+      matches({{lag_pattern}})
+    ) %>% 
+    na.omit()
+  
+  return(data)
 }

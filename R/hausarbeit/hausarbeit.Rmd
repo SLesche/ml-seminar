@@ -17,9 +17,14 @@ source("helper_functions.R")
 source("ml_functions.R")
 ```
 
-# Bang - Bang: Who can beat the Astros?
-Here talk about Scandal
+# Bang - Bang: Who Can Beat the Astros?
+Baseball, America's beloved pastime, is a sport rich in tradition and history. From the crack of the bat to the roar of the crowd, it has captivated fans for over a century. At its heart, baseball is a game of strategy, where pitchers and batters engage in a delicate dance of skill and anticipation. One team that has recently been at the center of this dance, both for their prowess and controversy, is the Houston Astros.
 
+The Astros have been a dominant force in Major League Baseball (MLB) in recent years, known for their talented roster and innovative approaches to the game. However, their success has been marred by a major scandal that shook the sports world. In 2017, the Astros were found guilty of using an illicit sign-stealing scheme during their championship-winning season. This involved using technology to decode the signs of opposing players and relaying this information to their batters in real-time, giving them an unfair advantage by allowing them to predict the incoming pitch in advance.
+
+The scandal, often referred to as the "Bang-Bang" scandal, after the sounds allegedly used to signal the pitches to the batters, resulted in severe repercussions. Several team members and staff were fined, suspended, and publicly scrutinized. Despite this, the Astros have continued to be a formidable team, raising the question: who can beat the Astros?
+
+In the wake of the scandal, teams across the league have sought ways to counter the Astros' strategies and regain a competitive edge. This brings us to the intersection of baseball and cutting-edge technology: the use of machine learning to predict the next pitch. By analyzing vast amounts of data, machine learning models can provide insights into pitching patterns and tendencies, potentially leveling the playing field.In this blog post, we'll explore how machine learning is being used to predict the next pitch, giving teams a new tool in their arsenal to outsmart even the most cunning opponents. From the basic principles of machine learning to its application in baseball, we'll dive deep into the technology that could hold the key to beating the Astros and others like them.
 
 # Data
 Talk about how it is being read in
@@ -27,8 +32,8 @@ Talk about how it is being read in
 and which pitcher we are using
 ```{r data}
 # Getting data ----
-# id_map <- data.table::fread("./data/player_id_map.csv") %>% 
-#   rename("bbref_id" = BREFID)
+id_map <- data.table::fread("./data/player_id_map.csv") %>%
+  rename("bbref_id" = BREFID)
 
 # scherzer_data <- get_pbp_data("Max Scherzer", id_map)
 # data.table::fwrite(scherzer_data, "./data/scherzer_data.csv")
@@ -57,7 +62,7 @@ kimbrel_data <- data.table::fread("./data/kimbrel_data.csv")
 
 ## How does the data cleaning work?
 ```{r cleaning}
-clean_data <- kimbrel_data %>% clean_pbp_data()
+clean_data <- scherzer_data %>% clean_pbp_data()
 ```
 
 # Pitches
@@ -80,7 +85,7 @@ plot_pitch_velocity(clean_data %>% filter(game_year > 2018))
 Describe concept and feature engineering done here
 ```{r ml-prep}
 # Recoding Data ----
-ml_data <- clean_data %>% filter(game_year > 2018) %>%  prep_for_ml()
+ml_data <- clean_data %>% filter(game_year > 2017) %>%  prep_for_ml()
 
 outcome <- ml_data %>% select(pitch_type, is_fastball)
 
@@ -95,42 +100,24 @@ ml_ohe$outcome <- factor(outcome$is_fastball)
 split_data <- rsample::initial_validation_split(ml_ohe, c(0.9, 0.05))
 
 training_data <- rsample::training(split_data) %>% 
-  select(
-    outcome,
-    starts_with("freq"),
-    starts_with("lag1"),
-    starts_with("lag2")
-    ) %>% 
-  na.omit()
+  select_vars_for_ml(2)
 
 testing_data <- rsample::testing(split_data) %>% 
-  select(
-    outcome,
-    starts_with("freq"),
-    starts_with("lag1"),
-    starts_with("lag2")
-  ) %>% 
-  na.omit()
+  select_vars_for_ml(2)
 
 validation_data <- rsample::validation(split_data) %>% 
-  select(
-    outcome,
-    starts_with("freq"),
-    starts_with("lag1"),
-    starts_with("lag2")
-  ) %>% 
-  na.omit()
+  select_vars_for_ml(2)
 ```
 
 ## Models
 ```{r take-the-best}
 take_the_best <-  ml_data %>% 
     group_by(game_year, stand, balls, strikes) %>%
-    count(pitch_type) %>% 
+    count(is_fastball) %>% 
     mutate(
       freq = n / sum(n)
     ) %>% 
-    filter(pitch_type != "") %>% 
+    # filter(pitch_type != "") %>% 
   slice_max(freq) %>% 
   mutate(
     mult = n * freq
