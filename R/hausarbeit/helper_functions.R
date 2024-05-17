@@ -202,6 +202,7 @@ prep_for_ml <- function(data){
     paste0("freq_", available_pitches),
     paste0("fastball_freq", c(0,1)),
     paste0("rolling_fastball_avg_", c(5, 10, 20, 999)),
+    "count",
     "game_year",
     "inning",
     "pitch_count_total",
@@ -377,6 +378,7 @@ prep_for_ml <- function(data){
         ~addNA(factor(.))
       )
     ) %>% 
+    mutate(count = factor(paste0(balls, "-", strikes))) %>% 
     mutate(pitch_type = factor(pitch_type)) %>% 
     mutate(
       across(
@@ -421,13 +423,12 @@ prep_for_ml <- function(data){
 select_vars_for_ml <- function(ml_ohe, lag_amount){
   lag_pattern = paste0("^lag[", paste(seq(1, lag_amount, 1), collapse = ""), "]")
   
+  anti_lag = paste0("^lag[", paste(seq(lag_amount + 1, 5, 1), collapse = ""), "]")
+  
   data = ml_ohe %>% 
     select(
-      outcome,
-      starts_with("freq"),
-      starts_with("rolling"),
-      starts_with("fastball"),
-      matches({{lag_pattern}})
+      -game_pk,
+      -matches({{anti_lag}})
     ) %>% 
     na.omit()
   
