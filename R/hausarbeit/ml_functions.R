@@ -220,20 +220,20 @@ run_knn <- function(training_data, testing_data, validation_data){
     select_if(~!is_binary_column(.))
   
   train_scale = training_data %>% 
-    select(-outcome, -ends_with("hit_location_other")) %>% 
+    select(-outcome, -ends_with("hit_location_other"), -ends_with("Other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
   val_scale = validation_data %>% 
-    select(-outcome, -ends_with("hit_location_other")) %>% 
+    select(-outcome, -ends_with("hit_location_other"), -ends_with("Other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
   
   test_scale = testing_data %>% 
-    select(-outcome, -ends_with("hit_location_other")) %>% 
+    select(-outcome, -ends_with("hit_location_other"), -ends_with("Other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
@@ -271,20 +271,20 @@ run_svm <- function(training_data, testing_data, validation_data){
     select_if(~!is_binary_column(.))
   
   train_scale = training_data %>% 
-    select(-outcome, -ends_with("hit_location_other")) %>% 
+    select(-outcome, -ends_with("hit_location_other"), -ends_with("Other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
   val_scale = validation_data %>% 
-    select(-outcome, -ends_with("hit_location_other")) %>% 
+    select(-outcome, -ends_with("hit_location_other"), -ends_with("Other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
   
   test_scale = testing_data %>% 
-    select(-outcome, -ends_with("hit_location_other")) %>% 
+    select(-outcome, -ends_with("hit_location_other"), -ends_with("Other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
@@ -349,25 +349,26 @@ run_svm_linear <- function(training_data, testing_data, validation_data){
     select_if(~!is_binary_column(.))
   
   train_scale = training_data %>% 
-    select(-outcome, -ends_with("hit_location_other")) %>% 
+    select(-outcome, -ends_with("hit_location_other"), -ends_with("Other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
   val_scale = validation_data %>% 
-    select(-outcome, -ends_with("hit_location_other")) %>% 
+    select(-outcome, -ends_with("hit_location_other"), -ends_with("Other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
   
   test_scale = testing_data %>% 
-    select(-outcome, -ends_with("hit_location_other")) %>% 
+    select(-outcome, -ends_with("hit_location_other"), -ends_with("Other")) %>% 
     mutate(across(all_of(names(cols_to_scale)), scale)) %>% 
     janitor::remove_empty() %>% 
     as.data.frame()
   
-  try_cost = 1 / c(2, 5, 10, 100, 1000, 10000)
+  # try_cost = 1 / c(2, 5, 10, 100, 1000, 10000)
+  try_cost = 1 / c(100, 1000, 10000)
   svm_accuracy = numeric(length(try_cost))
   
   for (i in seq_along(try_cost)){
