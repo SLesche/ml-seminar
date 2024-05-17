@@ -3,7 +3,7 @@ title: "Hausarbeit ML-Seminar"
 output: html_notebook
 ---
 
-```{r setup}
+```{r setup, eval = TRUE, warning = FALSE, include = TRUE}
 # Load packages
 library(tidyverse)
 library(baseballr)
@@ -15,16 +15,18 @@ library(class)
 
 source("helper_functions.R")
 source("ml_functions.R")
+
+knitr::opts_chunk$set(eval = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+
 ```
 
 # Bang - Bang: Who Can Beat the Astros?
-Baseball, America's beloved pastime, is a sport rich in tradition and history. From the crack of the bat to the roar of the crowd, it has captivated fans for over a century. At its heart, baseball is a game of strategy, where pitchers and batters engage in a delicate dance of skill and anticipation. One team that has recently been at the center of this dance, both for their prowess and controversy, is the Houston Astros.
+I love baseball! And I am not they only one... from the crack of the bat to the roar of the crowd, it has captivated fans for over a century. At its heart, baseball is a game of strategy, where pitchers and batters engage in a delicate dance of skill and anticipation. One team that has recently been at the center of this dance, both for their prowess and controversy, is the Houston Astros.
 
-The Astros have been a dominant force in Major League Baseball (MLB) in recent years, known for their talented roster and innovative approaches to the game. However, their success has been marred by a major scandal that shook the sports world. In 2017, the Astros were found guilty of using an illicit sign-stealing scheme during their championship-winning season. This involved using technology to decode the signs of opposing players and relaying this information to their batters in real-time, giving them an unfair advantage by allowing them to predict the incoming pitch in advance.
+The Astros have been a dominant force in Major League Baseball (MLB) in recent years, known for their talented roster and innovative approaches to the game. However, their success has been marred by a major scandal that shook the sports world. In 2017, the Astros were found guilty of using an illicit sign-stealing scheme during their championship-winning season. This involved using technology to decode the signs of opposing players and relaying this information to their batters in real-time, giving them an unfair advantage by allowing them to predict the incoming pitch in advance. They then relayed that information to their players by banging on a trashcan once, if the incoming pitch was a slower pitch, and not doing anything if the incoming pitch was a fastball (hence the title).
 
-The scandal, often referred to as the "Bang-Bang" scandal, after the sounds allegedly used to signal the pitches to the batters, resulted in severe repercussions. Several team members and staff were fined, suspended, and publicly scrutinized. Despite this, the Astros have continued to be a formidable team, raising the question: who can beat the Astros?
-
-In the wake of the scandal, teams across the league have sought ways to counter the Astros' strategies and regain a competitive edge. This brings us to the intersection of baseball and cutting-edge technology: the use of machine learning to predict the next pitch. By analyzing vast amounts of data, machine learning models can provide insights into pitching patterns and tendencies, potentially leveling the playing field.In this blog post, we'll explore how machine learning is being used to predict the next pitch, giving teams a new tool in their arsenal to outsmart even the most cunning opponents. From the basic principles of machine learning to its application in baseball, we'll dive deep into the technology that could hold the key to beating the Astros and others like them.
+So I thought, let's try to do just that: predict whether the next pitch was a fastball or not. However, I want to do this fairly, by using publicly available data and preferably not having to bang on any trashcans. By analyzing vast amounts of data, machine learning models can provide insights into pitching patterns and tendencies, potentially leveling the playing field. In this work, I'll explore how machine learning can be used to predict the next pitch, giving teams a new tool in their arsenal to outsmart even the most cunning opponents. From the basic principles of machine learning to its application in baseball, we'll dive deep into the technology that could hold the key to beating the Astros and others like them.
 
 ## Baseball
 Before we dive deep into predicting the future of baseball, I want to provide a quick introduction to the sport. Baseball is a bat-and-ball sport played between two teams of nine players each, taking turns batting and fielding. The game is played on a diamond-shaped field, which includes four bases arranged in a square around the pitcher's mound.
@@ -187,7 +189,7 @@ Predicting fastballs or off-speed pitches is also more historically accurate (lo
 
 ### The null model
 ```{r take-the-best}
-take_the_best <-  ml_data %>% 
+take_the_best <- ml_data %>% 
     group_by(game_year, stand, balls, strikes) %>%
     count(is_fastball) %>% 
     mutate(
