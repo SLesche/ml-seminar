@@ -180,6 +180,12 @@ validation_data <- rsample::validation(split_data) %>%
 ```
 
 ## Models
+We will focus on predicting which overall type of pitch is coming: "Fastball or not?". I did this to reduce complexity of the models. You can also try changing the `outcome` variable to `pitch_type` which would change the models (except the Regression models) towards trying to classify exact pitch types.
+
+Predicting fastballs or off-speed pitches is also more historically accurate (looking at you... Astros).
+
+
+### The null model
 ```{r take-the-best}
 take_the_best <-  ml_data %>% 
     group_by(game_year, stand, balls, strikes) %>%
@@ -199,21 +205,46 @@ take_the_best <-  ml_data %>%
 
 # Here accuracy when taking the best just based on balls/strikes/
 ```
+This is a model that simply predicts the most common type of pitch thrown in a specific scenario everytime. For Max Scherzer, this is a fastball in all scenarios. The accuracy of this model is `r take_the_best$accuracy`.
+
+Now, lets see if ML models can outperform this:
+For all models, we used the train-validation-test split to hypertune some parameter for optimal accuracy in the validation set. Then we computed the accuracy in the test set as a final indicator. You can find more info in the source code of each function (located in the `ml_functions.R` script).
 
 ### Lasso
 ```{r lasso}
 lasso_result <- run_lasso_regression(training_data, testing_data, validation_data)
 ```
+The accuracy in the testing data is `r lasso_result$test_acc`.
 
 ### Ridge
 ```{r ridge}
 ridge_result <- run_ridge_regression(training_data, testing_data, validation_data)
 ```
+The accuracy in the testing data is `r ridge_result$test_acc`.
 
 ### Random Forest
 ```{r random-forest}
 rf_result <- run_random_forest(training_data, testing_data, validation_data)
 ```
+The accuracy in the testing data is `r rf_result$test_acc`.
+
+Random Forest Models make visualizing the importance of features quite simple. I chose two ways to visualize the importance of each feature, SHAP values and permutation-based importance.
+
+SHAP values provide a unified measure of feature importance based on cooperative game theory, specifically Shapley values. Here’s how SHAP importance works:
+
+1. **Shapley Values**: Shapley values come from cooperative game theory and provide a fair way to distribute the "payout" among players (features in this context). They consider all possible combinations of features and how the inclusion of a specific feature changes the prediction.
+  
+2. **Model Explanation**: SHAP values explain the prediction of an instance by computing the contribution of each feature to the prediction. For Random Forests, SHAP values represent the average marginal contribution of a feature across all possible subsets of features.
+  
+3. **Global Feature Importance**: By averaging the absolute SHAP values of each feature across all instances in the dataset, you get a global measure of feature importance. This tells you which features have the most impact on the model's predictions overall.
+
+Permutation importance assesses the importance of a feature by measuring the change in the model's performance when the values of that feature are randomly shuffled. Here's how it works:
+
+1. **Baseline Performance**: First, compute the performance of the model using an appropriate metric (e.g., accuracy for classification, mean squared error for regression) on a validation set or the out-of-bag samples in the case of Random Forests.
+
+2. **Feature Permutation**: For each feature, permute (randomly shuffle) its values across all instances in the validation set. This breaks the relationship between the feature and the target variable while keeping the values of other features intact.
+
+3. **Measure Impact**: Recompute the model performance on the dataset with the permuted feature. The decrease in performance (compared to the baseline) indicates the importance of the feature. The larger the drop in performance, the more important the feature is.
 
 ```{r rf-viz}
 rf_imp <- get_predictor_importance_rf(rf_result$model, training_data)
@@ -235,18 +266,23 @@ treeshap::plot_contribution(rf_imp$shap, obs= 4)+
 ```{r knn}
 knn_result <- run_knn(training_data, testing_data, validation_data)
 ```
+The accuracy in the testing data is `r knn_result$test_acc`.
+
 
 ### Support Vector Machines
 ```{r svm}
 svm_result <- run_svm(training_data, testing_data, validation_data)
 ```
+The accuracy in the testing data is `r svm_result$test_acc`.
 
 ```{r svm-linear}
 svm_linear_result <- run_svm_linear(training_data, testing_data, validation_data)
 ```
+The accuracy in the testing data is `r svm_linear_result$test_acc`.
+
 
 ## The winner is...
-
+Here, show best models
 
 # Conclusion
-
+We did x good... is that good enough to beat the Astros? Time will tell. It was interesting that MODEL X won and that PREDICTOR Y was of maximum importance
