@@ -76,6 +76,7 @@ run_ridge_regression <- function(training_data, testing_data, validation_data){
   
   result = list()
   result$model = best_model
+  result$best_param = best_lambda
   result$train_acc = score_train$overall[1]
   result$test_acc = score_test$overall[1]
   return(result)
@@ -136,6 +137,7 @@ run_lasso_regression <- function(training_data, testing_data, validation_data){
   
   result = list()
   result$model = best_model
+  result$best_param = best_lambda
   result$train_acc = score_train$overall[1]
   result$test_acc = score_test$overall[1]
   return(result)

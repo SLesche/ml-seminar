@@ -354,10 +354,10 @@ prep_for_ml <- function(data){
   data_ml = data_ml %>% 
     group_by(game_pk) %>% 
     mutate(
-      rolling_fastball_avg_5 = zoo::rollapply(is_fastball, 5, mean, align = 'right', fill = NA, partial = TRUE),
-      rolling_fastball_avg_10 = zoo::rollapply(is_fastball, 10, mean, align = 'right', fill = NA, partial = TRUE),
-      rolling_fastball_avg_20 = zoo::rollapply(is_fastball, 20, mean, align = 'right', fill = NA, partial = TRUE),
-      rolling_fastball_avg_999 = zoo::rollapply(is_fastball, 999, mean, align = 'right', fill = NA, partial = TRUE),
+      rolling_fastball_avg_5 = zoo::rollapply(lag(is_fastball, 1), 5, mean, align = 'right', fill = NA, partial = TRUE),
+      rolling_fastball_avg_10 = zoo::rollapply(lag(is_fastball, 1), 10, mean, align = 'right', fill = NA, partial = TRUE),
+      rolling_fastball_avg_20 = zoo::rollapply(lag(is_fastball, 1), 20, mean, align = 'right', fill = NA, partial = TRUE),
+      rolling_fastball_avg_999 = zoo::rollapply(lag(is_fastball, 1), 999, mean, align = 'right', fill = NA, partial = TRUE),
     ) %>% 
     ungroup() %>% 
     left_join(., fastball_mix) %>% 
@@ -413,6 +413,10 @@ prep_for_ml <- function(data){
       across(lag_variables, ~lag(., 3), .names = "lag3_{.col}"),
       across(lag_variables, ~lag(., 4), .names = "lag4_{.col}"),
       across(lag_variables, ~lag(., 5), .names = "lag5_{.col}"),
+      across(lag_variables, ~lag(., 6), .names = "lag6_{.col}"),
+      across(lag_variables, ~lag(., 7), .names = "lag7_{.col}"),
+      across(lag_variables, ~lag(., 8), .names = "lag8_{.col}"),
+      across(lag_variables, ~lag(., 9), .names = "lag9_{.col}"),
     ) %>% 
     ungroup() %>% 
     select(-all_of(lag_variables[!lag_variables %in% c("is_fastball", "pitch_type")]))
@@ -421,9 +425,7 @@ prep_for_ml <- function(data){
 }
 
 select_vars_for_ml <- function(ml_ohe, lag_amount){
-  lag_pattern = paste0("^lag[", paste(seq(1, lag_amount, 1), collapse = ""), "]")
-  
-  anti_lag = paste0("^lag[", paste(seq(lag_amount + 1, 5, 1), collapse = ""), "]")
+  anti_lag = paste0("^lag[", paste(seq(lag_amount + 1, 9, 1), collapse = ""), "]")
   
   data = ml_ohe %>% 
     select(
