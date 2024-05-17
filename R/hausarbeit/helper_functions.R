@@ -378,7 +378,7 @@ prep_for_ml <- function(data){
         ~addNA(factor(.))
       )
     ) %>% 
-    mutate(count = factor(paste0(balls, "-", strikes))) %>% 
+    mutate(count = factor(paste0(balls, "_", strikes))) %>% 
     mutate(pitch_type = factor(pitch_type)) %>% 
     mutate(
       across(
@@ -419,7 +419,8 @@ prep_for_ml <- function(data){
       across(lag_variables, ~lag(., 9), .names = "lag9_{.col}"),
     ) %>% 
     ungroup() %>% 
-    select(-all_of(lag_variables[!lag_variables %in% c("is_fastball", "pitch_type")]))
+    select(-all_of(lag_variables[!lag_variables %in% c("is_fastball", "pitch_type")])) %>% 
+    janitor::clean_names()
     
     return(data_lagged_ml)
 }

@@ -1,6 +1,6 @@
 ---
 title: "Hausarbeit ML-Seminar"
-output: html_notebook
+output: html_document
 ---
 
 ```{r setup, eval = TRUE, warning = FALSE, include = TRUE}
@@ -165,20 +165,21 @@ ml_ohe <- mltools::one_hot(
   data.table::as.data.table(ml_data %>% select(-pitch_type, -is_fastball))
   ) %>% 
   janitor::remove_constant() %>% 
-  janitor::remove_empty()
+  janitor::remove_empty() %>% 
+  janitor::clean_names()
 
 ml_ohe$outcome <- factor(outcome$is_fastball)
 
 split_data <- rsample::initial_validation_split(ml_ohe, c(0.9, 0.05))
 
 training_data <- rsample::training(split_data) %>% 
-  select_vars_for_ml(2)
+  select_vars_for_ml(3)
 
 testing_data <- rsample::testing(split_data) %>% 
-  select_vars_for_ml(2)
+  select_vars_for_ml(3)
 
 validation_data <- rsample::validation(split_data) %>% 
-  select_vars_for_ml(2)
+  select_vars_for_ml(3)
 ```
 
 ## Models
@@ -215,6 +216,7 @@ For all models, we used the train-validation-test split to hypertune some parame
 ### Lasso
 ```{r lasso}
 lasso_result <- run_lasso_regression(training_data, testing_data, validation_data)
+coefs <- coef(lasso_result$model, lasso_result$best_param)
 ```
 The accuracy in the testing data is `r lasso_result$test_acc`.
 
