@@ -190,6 +190,7 @@ Predicting fastballs or off-speed pitches is also more historically accurate (lo
 
 ### The null model
 ```{r take-the-best}
+always_fastball <- ml_data %>% pull(is_fastball) %>% mean()
 take_the_best <- ml_data %>% 
     group_by(game_year, stand, balls, strikes) %>%
     count(is_fastball) %>% 
