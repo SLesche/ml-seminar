@@ -18,6 +18,7 @@ source("ml_functions.R")
 
 knitr::opts_chunk$set(eval = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
 
 ```
 
@@ -209,7 +210,7 @@ take_the_best <- ml_data %>%
 
 # Here accuracy when taking the best just based on balls/strikes/
 ```
-This is a model that simply predicts the most common type of pitch thrown in a specific scenario everytime. For Max Scherzer, this is a fastball in all scenarios. The accuracy of this model is `r take_the_best$accuracy`.
+This is a model that simply predicts the most common type of pitch thrown in a specific scenario everytime. For Max Scherzer, this is a fastball in all scenarios. The accuracy of this model is `r take_the_best$accuracy %>% print_percent()`. If you only predicted fastball, the accuracy is `r always_fastball %>% print_percent()`.
 
 Now, lets see if ML models can outperform this:
 For all models, we used the train-validation-test split to hypertune some parameter for optimal accuracy in the validation set. Then we computed the accuracy in the test set as a final indicator. You can find more info in the source code of each function (located in the `ml_functions.R` script).
@@ -219,29 +220,35 @@ For all models, we used the train-validation-test split to hypertune some parame
 lasso_result <- run_lasso_regression(training_data, testing_data, validation_data)
 coefs <- coef(lasso_result$model, lasso_result$best_param)
 ```
-The accuracy in the testing data is `r lasso_result$test_acc`.
+The accuracy in the testing data is `r lasso_result$test_acc %>% print_percent()`.
 
 ### Ridge
 ```{r ridge}
 ridge_result <- run_ridge_regression(training_data, testing_data, validation_data)
 ```
-The accuracy in the testing data is `r ridge_result$test_acc`.
+The accuracy in the testing data is `r ridge_result$test_acc %>% print_percent()`.
 
 ### Random Forest
 ```{r random-forest}
 rf_result <- run_random_forest(training_data, testing_data, validation_data)
 ```
-The accuracy in the testing data is `r rf_result$test_acc`.
+The accuracy in the testing data is `r rf_result$test_acc %>% print_percent()`. The large discrepance between training and testing accuracy (`r rf_result$train_acc %>% print_percent()` training vs. `r rf_result$test_acc %>% print_percent()` testing) suggests that the model is severly overfitting to the training set. Therefore, I will attempt to tune the `mtry` parameter.
 
-Random Forest Models make visualizing the importance of features quite simple. I chose two ways to visualize the importance of each feature, SHAP values and permutation-based importance.
+```{r random-forest-tune}
+rf_result_tuned <- run_random_forest_tune_mtry(training_data, testing_data, validation_data)
+```
+After tuning, the optimal `mtry` is `r rf_result_tuned$best_param` and leads to an accuracy of `r rf_result_tuned$test_acc %>% print_percet()`.
 
-SHAP values provide a unified measure of feature importance based on cooperative game theory, specifically Shapley values. Here’s how SHAP importance works:
+#### Visualizing feature importance
+Random Forest Models make visualizing the importance of features quite simple. I chose to visualize the importance of each feature using permutation-based importance.
 
-1. **Shapley Values**: Shapley values come from cooperative game theory and provide a fair way to distribute the "payout" among players (features in this context). They consider all possible combinations of features and how the inclusion of a specific feature changes the prediction.
-  
-2. **Model Explanation**: SHAP values explain the prediction of an instance by computing the contribution of each feature to the prediction. For Random Forests, SHAP values represent the average marginal contribution of a feature across all possible subsets of features.
-  
-3. **Global Feature Importance**: By averaging the absolute SHAP values of each feature across all instances in the dataset, you get a global measure of feature importance. This tells you which features have the most impact on the model's predictions overall.
+<!-- SHAP values provide a unified measure of feature importance based on cooperative game theory, specifically Shapley values. Here’s how SHAP importance works: -->
+
+<!-- 1. **Shapley Values**: Shapley values come from cooperative game theory and provide a fair way to distribute the "payout" among players (features in this context). They consider all possible combinations of features and how the inclusion of a specific feature changes the prediction. -->
+
+<!-- 2. **Model Explanation**: SHAP values explain the prediction of an instance by computing the contribution of each feature to the prediction. For Random Forests, SHAP values represent the average marginal contribution of a feature across all possible subsets of features. -->
+
+<!-- 3. **Global Feature Importance**: By averaging the absolute SHAP values of each feature across all instances in the dataset, you get a global measure of feature importance. This tells you which features have the most impact on the model's predictions overall. -->
 
 Permutation importance assesses the importance of a feature by measuring the change in the model's performance when the values of that feature are randomly shuffled. Here's how it works:
 
@@ -258,32 +265,32 @@ plot(rf_imp$importance) +
   ggtitle("PFI") +
   xlab('Reduction in MSE (compared to average loss) when predictor included')
 
-# Plotting
-shap_values = shapviz::shapviz(rf_imp$shap)
-shapviz::sv_importance(shap_values, show_numbers = T)
-shapviz::sv_importance(shap_values, kind='bee')
-treeshap::plot_contribution(rf_imp$shap, obs= 4)+
-  ggtitle('SHAP Break-down: Sample no.5')+
-  ylab('SHAP value')
+# # Plotting
+# shap_values = shapviz::shapviz(rf_imp$shap)
+# shapviz::sv_importance(shap_values, show_numbers = T)
+# shapviz::sv_importance(shap_values, kind='bee')
+# treeshap::plot_contribution(rf_imp$shap, obs= 4)+
+#   ggtitle('SHAP Break-down: Sample no.5')+
+#   ylab('SHAP value')
 ```
 
 ### K-Nearest-Neighbor
 ```{r knn}
 knn_result <- run_knn(training_data, testing_data, validation_data)
 ```
-The accuracy in the testing data is `r knn_result$test_acc`.
+The accuracy in the testing data is `r knn_result$test_acc %>% print_percent()`.
 
 
 ### Support Vector Machines
 ```{r svm}
 svm_result <- run_svm(training_data, testing_data, validation_data)
 ```
-The accuracy in the testing data is `r svm_result$test_acc`.
+The accuracy in the testing data is `r svm_result$test_acc %>% print_percent()`.
 
 ```{r svm-linear}
 svm_linear_result <- run_svm_linear(training_data, testing_data, validation_data)
 ```
-The accuracy in the testing data is `r svm_linear_result$test_acc`.
+The accuracy in the testing data is `r svm_linear_result$test_acc %>% print_percent()`.
 
 
 ## The winner is...

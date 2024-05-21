@@ -433,7 +433,16 @@ select_vars_for_ml <- function(ml_ohe, lag_amount){
       -game_pk,
       -matches({{anti_lag}})
     ) %>% 
-    na.omit()
+    na.omit() %>% 
+    mutate_all(as.numeric) %>% 
+    mutate(outcome = factor(outcome))
   
   return(data)
+}
+
+print_percent <- function(freq){
+  percent = freq*100
+  apa_msg = papaja::apa_num(percent)
+  final = paste0(apa_msg, " %")
+  return(final)
 }
