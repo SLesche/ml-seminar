@@ -164,7 +164,7 @@ run_random_forest <- function(training_data, testing_data, validation_data){
       validation_data$outcome
     )
     
-    validation_accuracy[i] = val_perf_rforest$overall[i]
+    validation_accuracy[i] = val_perf_rforest$overall[1]
   }
   
   best_nodesize = try_nodesize[validation_accuracy == max(validation_accuracy)][1]
@@ -199,6 +199,65 @@ run_random_forest <- function(training_data, testing_data, validation_data){
   result$test_acc = test_perf_rforest$overall[1]
   return(result)
   
+}
+
+run_random_forest_tune_mtry <- function(training_data, testing_data, validation_data){
+  try_mtry = seq(5, ncol(training_data) - 1, 10)
+  
+  validation_accuracy = numeric(length(try_mtry))
+  
+  for (i in seq_along(try_mtry)){
+    # Random Forest ----
+    rforest = randomForest(outcome ~.,
+                           data = training_data,
+                           ntree = 200,
+                           mtry = try_mtry[i],
+                           nodesize = 10,
+    )
+    
+    # get predictions and validation set performance 
+    pred_rforest_val = predict(rforest, validation_data)
+    val_perf_rforest = eval_metrics_classification(
+      pred_rforest_val, 
+      validation_data$outcome
+    )
+    
+    validation_accuracy[i] = val_perf_rforest$overall[1]
+  }
+  
+  best_mtry = try_mtry[validation_accuracy == max(validation_accuracy)][1]
+  
+  
+  # Random Forest ----
+  rforest = randomForest(outcome ~.,
+                         data = training_data,
+                         ntree = 200,
+                         importance = TRUE,
+                         nodesize = 10,
+                         mtry = best_mtry
+  )
+  
+  # get predictions and train set performance 
+  pred_rforest_train = predict(rforest, training_data, type = "class")
+  train_perf_rforest = eval_metrics_classification(
+    pred_rforest_train,
+    training_data$outcome
+  )
+  
+  
+  # get predictions and test set performance 
+  pred_rforest_test = predict(rforest, testing_data)
+  test_perf_rforest = eval_metrics_classification(
+    pred_rforest_test, 
+    testing_data$outcome
+  )
+  
+  result = list()
+  result$model = rforest
+  result$best_param = best_mtry
+  result$train_acc = train_perf_rforest$overall[1]
+  result$test_acc = test_perf_rforest$overall[1]
+  return(result)
 }
 
 get_predictor_importance_rf <- function(model, training_data){

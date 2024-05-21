@@ -237,7 +237,7 @@ The accuracy in the testing data is `r rf_result$test_acc %>% print_percent()`. 
 ```{r random-forest-tune}
 rf_result_tuned <- run_random_forest_tune_mtry(training_data, testing_data, validation_data)
 ```
-After tuning, the optimal `mtry` is `r rf_result_tuned$best_param` and leads to an accuracy of `r rf_result_tuned$test_acc %>% print_percet()`.
+After tuning, the optimal `mtry` is `r rf_result_tuned$best_param` and leads to an accuracy of `r rf_result_tuned$test_acc %>% print_percent()`.
 
 #### Visualizing feature importance
 Random Forest Models make visualizing the importance of features quite simple. I chose to visualize the importance of each feature using permutation-based importance.
