@@ -1,9 +1,27 @@
 ---
 title: "Hausarbeit ML-Seminar"
-output: html_document
+subtitle: "Bang - Bang: Who Can Beat the Astros?"
+author: "Sven Lesche"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: flatly
+    toc: yes
+    toc_float:
+      collapsed: true
 ---
 
-```{r setup, eval = TRUE, warning = FALSE, include = TRUE}
+```{r setup, eval = TRUE, include = FALSE, warning = FALSE, message=FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  echo = TRUE      # Show code by default (set to FALSE to hide code)
+  # results = 'hide'  # Hide results by default (remove this line to show results)
+)
+```
+
+
+```{r packages}
 # Load packages
 library(tidyverse)
 library(baseballr)
@@ -16,13 +34,9 @@ library(class)
 source("helper_functions.R")
 source("ml_functions.R")
 
-knitr::opts_chunk$set(eval = FALSE)
-knitr::opts_chunk$set(warning = FALSE)
-knitr::opts_chunk$set(message = FALSE)
-
 ```
 
-# Bang - Bang: Who Can Beat the Astros?
+# Introduction
 I love baseball! And I am not they only one... from the crack of the bat to the roar of the crowd, it has captivated fans for over a century. At its heart, baseball is a game of strategy, where pitchers and batters engage in a delicate dance of skill and anticipation. One team that has recently been at the center of this dance, both for their prowess and controversy, is the Houston Astros.
 
 The Astros have been a dominant force in Major League Baseball (MLB) in recent years, known for their talented roster and innovative approaches to the game. However, their success has been marred by a major scandal that shook the sports world. In 2017, the Astros were found guilty of using an illicit sign-stealing scheme during their championship-winning season. This involved using technology to decode the signs of opposing players and relaying this information to their batters in real-time, giving them an unfair advantage by allowing them to predict the incoming pitch in advance. They then relayed that information to their players by banging on a trashcan once, if the incoming pitch was a slower pitch, and not doing anything if the incoming pitch was a fastball (hence the title).
@@ -46,7 +60,7 @@ Pitchers use these different types of pitches to deceive batters and gain an adv
 ### The Batter
 The offensive player, the batter, will try to hit those different types of pitches. After a hit, the game transforms to something similar to "Brennball" where the ball travels and you can run between safe spots ("bases") before the ball reaches you again. The exact scoring format is not that important. However, knowing which pitch type is coming would severly benefit a batters ability to perform.
 
-## Data
+# Data
 In the world of modern baseball analytics, data is king. To predict the next pitch accurately, we need access to detailed and comprehensive datasets that capture every nuance of the game. This is where the `baseballr` package comes in handy. The `baseballr` package allows us to access and manipulate baseball data from various sources, including the MLB's Statcast system.
 
 The `baseballr` package streamlines the process of retrieving game data, making it accessible for analysis. With some work (shown in the `get_pbp_data()` function of `helper_functions.R`), we can pull detailed pitch-by-pitch data, including information on pitch type, velocity, spin rate, and much more. 
@@ -90,26 +104,30 @@ clean_data <- scherzer_data %>% clean_pbp_data()
 ## Visualizing pitches
 Here we see the pitch usage by Max Scherzer. In the end, this is the data I will demonstrate all the machine learning models on. "Mad" Max Scherzer is an ideal subject for our analysis for several reasons. Firstly, Scherzer is widely regarded as one of the best pitchers in baseball. His career, marked by multiple Cy Young Awards and All-Star appearances, speaks volumes about his skill and consistency.
 
-More importantly, Scherzer has maintained a remarkably stable pitch mix since 2017. This consistency makes him an excellent candidate for predictive modeling, as it allows us to identify patterns and trends more reliably. A pitcher with a stable repertoire provides a clearer signal for our machine learning algorithms, improving the accuracy of our predictions.
+More importantly, Scherzer has maintained a remarkably stable pitch mix since 2018. This consistency makes him an excellent candidate for predictive modeling, as it allows us to identify patterns and trends more reliably. A pitcher with a stable repertoire provides a clearer signal for our machine learning algorithms, improving the accuracy of our predictions.
 
 By focusing on Scherzer, we leverage the wealth of data available from his extensive and consistent career to build a robust model. This not only enhances our understanding of his pitching strategies but also serves as a blueprint for applying similar techniques to other pitchers and teams.
 
 ```{r pitch-usage}
 plot_pitch_usage(clean_data)
 ```
+
 In the following plots, you can see how different pitches move and why they might be classified into different categories. You can also see differences in velocity that give rise to the description "fastball". Both the "Cutter" and the "4-Seam Fastball" would fall into this category, being thrown over 140km/h. 
+
 ```{r pitch-stats}
-plot_pitch_movement(clean_data %>% filter(game_year > 2018))
+plot_pitch_movement(clean_data %>% filter(game_year > 2017))
 
-plot_pitch_velocity(clean_data %>% filter(game_year > 2018))
+plot_pitch_velocity(clean_data %>% filter(game_year > 2017))
 
-plot_pitch_by_count(clean_data %>% filter(game_year > 2018))
+plot_pitch_by_count(clean_data %>% filter(game_year > 2017))
 
-plot_pitch_by_batter(clean_data %>% filter(game_year > 2018))
+plot_pitch_by_batter(clean_data %>% filter(game_year > 2017))
 ```
+
 # Machine Learning
 In the following sections, we'll delve into the machine learning methodologies used to predict pitch types and how this data-driven approach can potentially level the playing field against even the most formidable opponents, like the Astros.
 
+## Feature Engineering
 Firstly, we have to prepare the data to fit our machine learning functions and engineer some additional features that might help us predict future pitches. We will focus on all the pitches Max has thrown after 2017. The `prep_for_ml` function performs the following feature engineering tasks on the baseball data to prepare it for machine learning:
 
 ### 1. **Calculating Intended Target Position**
@@ -186,7 +204,7 @@ validation_data <- rsample::validation(split_data) %>%
 ## Models
 We will focus on predicting which overall type of pitch is coming: "Fastball or not?". I did this to reduce complexity of the models. You can also try changing the `outcome` variable to `pitch_type` which would change the models (except the Regression models) towards trying to classify exact pitch types.
 
-Predicting fastballs or off-speed pitches is also more historically accurate (looking at you... Astros).
+Predicting fastballs or off-speed pitches is also more historically accurate (looking at you... Astros). For all models, we will make use of the validation data to tune some of the hyperparameters (e.g. `nodesize` or `mtry` for random forest models, `k` for KNN models, $\lambda$ for regularized regression models etc.).
 
 
 ### The null model
@@ -210,12 +228,14 @@ take_the_best <- ml_data %>%
 
 # Here accuracy when taking the best just based on balls/strikes/
 ```
-This is a model that simply predicts the most common type of pitch thrown in a specific scenario everytime. For Max Scherzer, this is a fastball in all scenarios. The accuracy of this model is `r take_the_best$accuracy %>% print_percent()`. If you only predicted fastball, the accuracy is `r always_fastball %>% print_percent()`.
+This is a model that simply predicts the most common type of pitch thrown in a specific scenario everytime. For Max Scherzer, this is a fastball in most, but not all, scenarios. The accuracy of this model is `r take_the_best$accuracy %>% print_percent()`. If you only predicted fastball, the accuracy is `r always_fastball %>% print_percent()`.
 
 Now, lets see if ML models can outperform this:
 For all models, we used the train-validation-test split to hypertune some parameter for optimal accuracy in the validation set. Then we computed the accuracy in the test set as a final indicator. You can find more info in the source code of each function (located in the `ml_functions.R` script).
 
 ### Lasso
+Lasso regression (Least Absolute Shrinkage and Selection Operator) is a type of linear regression that includes a penalty to encourage sparsity in the model coefficients. This means it can shrink some coefficients to exactly zero, effectively performing feature selection and reducing model complexity.
+
 ```{r lasso, cache = TRUE}
 lasso_result <- run_lasso_regression(training_data, testing_data, validation_data)
 coefs <- coef(lasso_result$model, lasso_result$best_param)
@@ -223,20 +243,26 @@ coefs <- coef(lasso_result$model, lasso_result$best_param)
 The accuracy in the testing data is `r lasso_result$test_acc %>% print_percent()`.
 
 ### Ridge
+Ridge regression is a type of linear regression that includes a penalty to prevent overfitting by shrinking the coefficients towards zero. Unlike Lasso, it does not set coefficients exactly to zero, allowing it to handle multicollinearity by distributing the impact across all features.
+
 ```{r ridge, cache = TRUE}
 ridge_result <- run_ridge_regression(training_data, testing_data, validation_data)
 ```
 The accuracy in the testing data is `r ridge_result$test_acc %>% print_percent()`.
 
 ### Random Forest
+This is an ensemble learning method that constructs multiple decision trees during training and outputs the average prediction (regression) or the majority vote (classification) of the individual trees. It improves accuracy and reduces overfitting by averaging the results of a large number of trees, each trained on random subsets of the data and features. Because we are predicting pitch types, this will be a classification model.
+
 ```{r random-forest, cache = TRUE}
 rf_result <- run_random_forest(training_data, testing_data, validation_data)
 ```
-The accuracy in the testing data is `r rf_result$test_acc %>% print_percent()`. The large discrepance between training and testing accuracy (`r rf_result$train_acc %>% print_percent()` training vs. `r rf_result$test_acc %>% print_percent()` testing) suggests that the model is severly overfitting to the training set. Therefore, I will attempt to tune the `mtry` parameter.
+
+The accuracy in the testing data is `r rf_result$test_acc %>% print_percent()`. The large discrepancy between training and testing accuracy (`r rf_result$train_acc %>% print_percent()` training vs. `r rf_result$test_acc %>% print_percent()` testing) suggests that the model is severly overfitting to the training set. Therefore, I will attempt to tune the `mtry` parameter.
 
 ```{r random-forest-tune, cache = TRUE}
 rf_result_tuned <- run_random_forest_tune_mtry(training_data, testing_data, validation_data)
 ```
+
 After tuning, the optimal `mtry` is `r rf_result_tuned$best_param` and leads to an accuracy of `r rf_result_tuned$test_acc %>% print_percent()`.
 
 #### Visualizing feature importance
@@ -265,23 +291,28 @@ plot(rf_imp$importance) +
   ggtitle("PFI") +
   xlab('Reduction in MSE (compared to average loss) when predictor included')
 
-# # Plotting
-# shap_values = shapviz::shapviz(rf_imp$shap)
-# shapviz::sv_importance(shap_values, show_numbers = T)
-# shapviz::sv_importance(shap_values, kind='bee')
-# treeshap::plot_contribution(rf_imp$shap, obs= 4)+
-#   ggtitle('SHAP Break-down: Sample no.5')+
-#   ylab('SHAP value')
+# Plotting
+shap_values = shapviz::shapviz(rf_imp$shap)
+shapviz::sv_importance(shap_values, show_numbers = T)
+shapviz::sv_importance(shap_values, kind='bee')
+treeshap::plot_contribution(rf_imp$shap, obs= 4)+
+  ggtitle('SHAP Break-down: Sample no.5')+
+  ylab('SHAP value')
 ```
 
 ### K-Nearest-Neighbor
+k-Nearest Neighbors (k-NN) is a simple, non-parametric algorithm used for classification and regression. It works by finding the k closest training examples to a given input and predicting the output based on the majority class (for classification) or the average (for regression) of these neighbors.
+
 ```{r knn, cache = TRUE}
 knn_result <- run_knn(training_data, testing_data, validation_data)
 ```
+
 The accuracy in the testing data is `r knn_result$test_acc %>% print_percent()`.
 
 
 ### Support Vector Machines
+Support Vector Machines (SVM) is a supervised learning algorithm used for classification and regression tasks. It works by finding the hyperplane that best separates data points into different classes while maximizing the margin between classes. SVMs can handle both linearly separable and non-linearly separable data by using different kernel functions to map input data into higher-dimensional feature spaces. I will first try non-linear kernel functions with polynomials of varying degrees and then fit a linear kernel with varying amounts of cost, optimizing for performance in the validation set.
+
 ```{r svm, cache = TRUE}
 svm_result <- run_svm(training_data, testing_data, validation_data)
 ```
@@ -294,7 +325,9 @@ The accuracy in the testing data is `r svm_linear_result$test_acc %>% print_perc
 
 
 ## The winner is...
-Here, show best models
+The random forest model slightly outperforms the ridge regression to take the top spot in our competition. It can correctly predict whether the coming pitch is a fastball or not in `r rf_result$test_acc %>% print_percent()`. Further tuning of hyperparameters is necessary as the tuning of `mtry` did not improve the accuracy in the test set.
 
 # Conclusion
-We did x good... is that good enough to beat the Astros? Time will tell. It was interesting that MODEL X won and that PREDICTOR Y was of maximum importance
+The random forest model did pretty good, outperforming just picking the most frequent type in each scenario by about 3 percentage points. Is this improvement good enough to beat the Astros? Time will tell.
+
+In my opinion, it is great to see that even sophisticated machine learning models do not do that much better than just predicting future pitches based on past pitch types. I guess the last 35% of coming pitches will remain a mystery and keep the game interesting for years to come.
