@@ -1,7 +1,7 @@
 ---
 title: "Hausarbeit ML-Seminar"
 subtitle: "Bang - Bang: Who Can Beat the Astros?"
-author: "Sven Lesche"
+author: "Sven Lesche - [GitHub](https://github.com/SLesche/ml-seminar/tree/main/R/hausarbeit)"
 date: "`r Sys.Date()`"
 output: 
   html_document:
