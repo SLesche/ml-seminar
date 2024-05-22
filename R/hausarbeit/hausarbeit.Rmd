@@ -332,14 +332,26 @@ This neural network is a deep sequential model with multiple dense layers, utili
 
 ```{r nn, cache = TRUE}
 nn_result <- run_nn(training_data, testing_data, validation_data)
-
 ```
+
+The accuracy in the testing data is `r nn_result$test_acc %>% print_percent()`.
 
 ```{r nn-viz, cache = TRUE}
 plot(nn_result$history)
 ```
 
-The accuracy in the testing data is `r nn_result$test_acc %>% print_percent()`.
+As you can see from the progress plot, this model with multiple dense layers severly overfits to the training data, even after adding dropout regularization and adjustments of the learning rate.
+
+I therefore tried to fit a model with more limited layers:
+```{r nn-small, cache = TRUE}
+nn_result_small <- run_nn_small(training_data, testing_data, validation_data)
+```
+
+```{r nn-small-viz, cache = TRUE}
+plot(nn_result_small$history)
+```
+
+The accuracy in the testing data is `r nn_result_small$test_acc %>% print_percent()`.
 
 ## The winner is...
 The random forest model slightly outperforms the ridge regression to take the top spot in our competition. It can correctly predict whether the coming pitch is a fastball or not in `r rf_result$test_acc %>% print_percent()`. Further tuning of hyperparameters is necessary as the tuning of `mtry` did not improve the accuracy in the test set.
