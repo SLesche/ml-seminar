@@ -480,3 +480,101 @@ run_svm_linear <- function(training_data, testing_data, validation_data){
   result$test_acc = test_perf_svm$overall[1]
   return(result)
 }
+
+maximum_normalize <- function(vector){
+  min_value = min(vector)
+  if (min_value < 0){
+    vector = vector - min_value
+  }
+  max_value = max(vector)
+  
+  normalized_vec = vector / max_value
+  
+  return(normalized_vec)
+}
+
+run_nn <- function(training_data, testing_data, validation_data){
+  cols_to_scale = training_data %>% 
+    select_if(is.numeric) %>% 
+    select_if(~!is_binary_column(.))
+  
+  train_scale = training_data %>% 
+    select(-ends_with("hit_location_other"), -ends_with("Other")) %>% 
+    mutate(across(all_of(names(cols_to_scale)), maximum_normalize)) %>% 
+    janitor::remove_empty() %>% 
+    as.data.frame() %>% 
+    mutate(outcome = as.numeric(outcome) - 1)
+  
+  test_scale = testing_data %>% 
+    select(-ends_with("hit_location_other"), -ends_with("Other")) %>% 
+    mutate(across(all_of(names(cols_to_scale)), maximum_normalize)) %>% 
+    janitor::remove_empty() %>% 
+    as.data.frame() %>%
+    mutate(outcome = as.numeric(outcome) - 1)
+  
+  val_scale = validation_data %>% 
+    select(-ends_with("hit_location_other"), -ends_with("Other")) %>% 
+    mutate(across(all_of(names(cols_to_scale)), maximum_normalize)) %>% 
+    janitor::remove_empty() %>% 
+    as.data.frame() %>%
+    mutate(outcome = as.numeric(outcome) - 1)
+  
+  x_train = train_scale %>% select(-outcome) %>% data.matrix()
+  y_train = train_scale %>% select(outcome) %>% data.matrix() 
+  x_val = val_scale %>% select(-outcome) %>% data.matrix()
+  y_val = val_scale %>% select(outcome) %>% data.matrix()
+  x_test = test_scale %>% select(-outcome) %>% data.matrix()
+  y_test = test_scale %>% select(outcome )%>% data.matrix()
+  
+  training_labels = to_categorical(y_train)
+  testing_labels = to_categorical(y_test)
+  val_labels = to_categorical(y_val)
+  
+  # Define and compile model
+  model = keras_model_sequential() 
+  model %>% 
+    layer_dense(units = 256, activation = "relu", input_shape = dim(x_train)[2]) %>%
+    layer_dropout(rate = 0.5) %>% 
+    layer_dense(units = 128, activation = "relu") %>%
+    layer_dropout(rate = 0.25) %>% 
+    layer_dense(units = 64, activation = "relu") %>%
+    layer_dropout(rate = 0.1) %>% 
+    layer_dense(units = 32, activation = "relu") %>%
+    layer_dense(units = 2, activation = "softmax")
+  
+  model %>% compile(
+    loss = 'categorical_crossentropy',
+    optimizer = optimizer_rmsprop(),  # Tune learning rate
+    metrics = 'accuracy'
+  )
+  
+  # Train model with validation data
+  history = model %>% fit(
+    x_train, training_labels, 
+    epochs = 100, 
+    batch_size = 40,
+    validation_data = list(x_val, val_labels),  # Supply validation data
+    callbacks = list(
+      callback_early_stopping(patience = 10),  # Early stopping
+      callback_reduce_lr_on_plateau(factor = 0.5, patience = 5, min_lr = 0.0001)  # Reduce learning rate on plateau
+    )
+  )
+  
+  #train set performance
+  pred = predict(model, x_train)
+  pred_train = ifelse(pred[, 2] > 0.5, 1, 0)
+  train_perf = eval_metrics_classification(pred_train, y_train)
+  
+  #test set performance
+  pred = predict(model, x_test)
+  pred_test <- ifelse(pred[, 2] > 0.5, 1, 0)
+  test_perf <- eval_metrics_classification(pred_test, y_test)
+  
+  
+  result = list()
+  result$history = history
+  result$model = model
+  result$train_acc = train_perf$overall[1]
+  result$test_acc = test_perf$overall[1]
+  return(result)
+}

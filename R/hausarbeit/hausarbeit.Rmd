@@ -30,6 +30,8 @@ library(randomForest)
 library(e1071) 
 library(caTools) 
 library(class) 
+library(keras3)
+library(tensorflow)
 
 source("helper_functions.R")
 source("ml_functions.R")
@@ -324,6 +326,14 @@ svm_linear_result <- run_svm_linear(training_data, testing_data, validation_data
 ```
 The accuracy in the testing data is `r svm_linear_result$test_acc %>% print_percent()`.
 
+### Neural Network
+This neural network is a deep sequential model with multiple dense layers, utilizing rectified linear unit (ReLU) activation functions for non-linearity. It incorporates dropout regularization after each dense layer to prevent overfitting, and it's optimized using RMSprop with early stopping and learning rate adjustment based on plateauing validation performance.
+
+```{r nn, cache = TRUE}
+nn_result <-  suppressMessages(run_nn(training_data, testing_data, validation_data))
+```
+
+The accuracy in the testing data is `r nn_result$test_acc %>% print_percent()`.
 
 ## The winner is...
 The random forest model slightly outperforms the ridge regression to take the top spot in our competition. It can correctly predict whether the coming pitch is a fastball or not in `r rf_result$test_acc %>% print_percent()`. Further tuning of hyperparameters is necessary as the tuning of `mtry` did not improve the accuracy in the test set.
