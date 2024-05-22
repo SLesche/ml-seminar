@@ -6,6 +6,7 @@ date: "`r Sys.Date()`"
 output: 
   html_document:
     theme: flatly
+    code_folding: show
     toc: yes
     toc_float:
       collapsed: true
@@ -330,7 +331,12 @@ The accuracy in the testing data is `r svm_linear_result$test_acc %>% print_perc
 This neural network is a deep sequential model with multiple dense layers, utilizing rectified linear unit (ReLU) activation functions for non-linearity. It incorporates dropout regularization after each dense layer to prevent overfitting, and it's optimized using RMSprop with early stopping and learning rate adjustment based on plateauing validation performance.
 
 ```{r nn, cache = TRUE}
-nn_result <-  suppressMessages(run_nn(training_data, testing_data, validation_data))
+nn_result <- run_nn(training_data, testing_data, validation_data)
+
+```
+
+```{r nn-viz, cache = TRUE}
+plot(nn_result$history)
 ```
 
 The accuracy in the testing data is `r nn_result$test_acc %>% print_percent()`.

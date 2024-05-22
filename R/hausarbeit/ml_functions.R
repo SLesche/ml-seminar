@@ -557,7 +557,8 @@ run_nn <- function(training_data, testing_data, validation_data){
     callbacks = list(
       callback_early_stopping(patience = 10),  # Early stopping
       callback_reduce_lr_on_plateau(factor = 0.5, patience = 5, min_lr = 0.0001)  # Reduce learning rate on plateau
-    )
+    ),
+    verbose = 0
   )
   
   #train set performance

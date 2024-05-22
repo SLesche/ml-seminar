@@ -15,3 +15,5 @@ randomForest
 e1071
 caTools
 class
+keras3
+tensorflow
