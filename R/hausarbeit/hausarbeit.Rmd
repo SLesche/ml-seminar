@@ -34,6 +34,7 @@ library(class)
 source("helper_functions.R")
 source("ml_functions.R")
 
+sessionInfo()
 ```
 
 # Introduction
